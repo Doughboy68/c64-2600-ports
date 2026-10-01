@@ -67,21 +67,75 @@ const Builder = (() => {
     games.push(g);
   }
 
-  // Which game is this file (a ROM, or a .zip holding one)? -> {game, rom} or null
+  // ---------------------------------------------------------------- matching
+  // Each segment is [romStart, prgOffset, length, rollHash, md5]. The two hashes
+  // fingerprint the bytes a port needs without containing them: the rolling hash
+  // finds candidates anywhere in a ROM quickly, MD5 confirms them.
+  const BASE = 0x01000193;
+  function rollHash(bytes, start, n) {
+    let h = 0;
+    for (let i = 0; i < n; i++) h = (Math.imul(h, BASE) + bytes[start + i]) >>> 0;
+    return h;
+  }
+
+  // Find every piece of `game` in `rom` (at the expected address first, then
+  // anywhere). Returns the ROM position of each piece, or null if one is missing.
+  function locatePieces(game, rom) {
+    const segs = game.segments;
+    if (!segs.length || segs[0].length < 5) return null;   // old profile without fingerprints
+    const found = new Array(segs.length).fill(-1);
+    const check = (k, at) => {
+      const [, , n, rh, h] = segs[k];
+      return at >= 0 && at + n <= rom.length && rollHash(rom, at, n) === rh && md5(rom.subarray(at, at + n)) === h;
+    };
+    const byLength = new Map();
+    segs.forEach(([r, , n], k) => {
+      if (check(k, r)) found[k] = r;
+      else { if (!byLength.has(n)) byLength.set(n, []); byLength.get(n).push(k); }
+    });
+    for (const [n, ks] of byLength) {            // slide a window of each length over the ROM
+      if (n > rom.length) return null;
+      let pow = 1;
+      for (let i = 1; i < n; i++) pow = Math.imul(pow, BASE) >>> 0;
+      let h = rollHash(rom, 0, n);
+      for (let at = 0; ; at++) {
+        for (const k of ks) if (found[k] < 0 && h === segs[k][3] && md5(rom.subarray(at, at + n)) === segs[k][4]) found[k] = at;
+        if (at + n >= rom.length) break;
+        h = (Math.imul((h - Math.imul(rom[at], pow)) >>> 0, BASE) + rom[at + n]) >>> 0;
+      }
+      if (ks.some(k => found[k] < 0)) return null;
+    }
+    return found;
+  }
+
+  // Which game is this file (a ROM, or a .zip holding one)?
+  // -> {game, rom, exact, at} or null. exact: the listed dump. Otherwise a
+  // different dump that still holds every piece the port needs (at[k] = where).
   async function identify(bytes) {
-    const match = data => { const h = md5(data); return games.find(g => g.md5 === h); };
-    let g = match(bytes);
-    if (g) return { game: g, rom: bytes };
-    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
-      for (const f of await unzip(bytes)) { g = match(f.data); if (g) return { game: g, rom: f.data }; }
+    const candidates = [bytes];
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) for (const f of await unzip(bytes)) candidates.push(f.data);
+    for (const data of candidates) {
+      const h = md5(data), g = games.find(g => g.md5 === h);
+      if (g) return { game: g, rom: data, exact: true };
+    }
+    for (const data of candidates) {
+      if (data.length < 1024 || data.length > 65536) continue;
+      for (const g of games) {
+        const at = locatePieces(g, data);
+        if (at) return { game: g, rom: data, exact: false, at };
+      }
     }
     return null;
   }
 
-  // Put the ROM's bytes back into the template: segments are [romStart, prgOffset, length]
-  function buildPrg(game, rom) {
+  // Put the ROM's bytes back into the template. `at` (optional) says where each
+  // piece sits in this particular ROM; by default, where it sits in the listed dump.
+  function buildPrg(game, rom, at) {
     const out = game.templateBytes.slice();
-    for (const [r, p, n] of game.segments) out.set(rom.subarray(r, r + n), p);
+    game.segments.forEach(([r, p, n], k) => {
+      const from = at ? at[k] : r;
+      out.set(rom.subarray(from, from + n), p);
+    });
     return out;
   }
 
@@ -145,7 +199,7 @@ const Builder = (() => {
     return img;
   }
 
-  return { games, md5, unzip, addGame, identify, buildPrg, buildD64 };
+  return { games, md5, unzip, rollHash, addGame, identify, locatePieces, buildPrg, buildD64 };
 })();
 
 if (typeof module !== 'undefined') module.exports = Builder;
