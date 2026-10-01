@@ -12,22 +12,21 @@ those bytes go back. The user's ROM, checked by MD5, fills them in.
 
 | File | What |
 |---|---|
-| `index.html` | the page |
-| `builder-core.js` | ROM check (MD5), `.zip` reading, `.prg` and `.d64` building |
+| `index.html` | the builder page |
+| `make-profile.html` | makes a profile from a finished C64 port and its ROM |
+| `builder-core.js` | ROM check (MD5), `.zip` reading, `.prg` and `.d64` building, profile making |
 | `games/games.js` | the list of profiles to load |
 | `games/<id>.js` | one profile per game |
 
 ## Adding a game
 
-In the development repository, describe the port in a small JSON file (see
-`src/web/space-invaders.json`) and run
+1. Open `make-profile.html`, drop in the finished `.prg` and the ROM it was made from, check the
+   details (filled in from the `.prg`'s BASIC lines), and download `<id>.js`. The page refuses
+   to make a profile unless it rebuilds the `.prg` byte for byte and the ROM clearly matches.
+2. Put `<id>.js` in `games/` and add it to the list in `games/games.js`
+   (the maintainer's `publish.cmd` does this automatically).
 
-```bash
-node tools/mkprofile.js src/web/<game>.json
-```
-
-It writes `games/<id>.js` and adds it to `games/games.js`. It refuses to write a profile
-that doesn't rebuild the exact `.prg`. Copy both files here (or this whole folder) and publish.
+Profiles are code that the builder page runs, so look over any you receive before adding them.
 
 ## Hosting on GitHub Pages
 

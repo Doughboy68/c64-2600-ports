@@ -1,4 +1,4 @@
-// Ms. Pac-Man (Atari 2600) for the C64: builder profile, made by tools/mkprofile.js.
+// Ms. Pac-Man (Atari 2600) for the C64: builder profile.
 // Contains no original game code: every copy of the ROM's bytes is blanked; the user's ROM supplies them.
 Builder.addGame({
  "id": "ms-pac-man",

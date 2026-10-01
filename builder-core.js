@@ -145,7 +145,82 @@ const Builder = (() => {
     return img;
   }
 
-  return { games, md5, unzip, addGame, identify, buildPrg, buildD64 };
+  // ---------------------------------------------------------------- making profiles
+  function toBase64(bytes) {
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+
+  // Turn a finished C64 port (.prg) and the ROM it was made from into a profile.
+  // Every stretch of the .prg that is a copy of the ROM (8+ bytes, wherever and
+  // however often it occurs) is blanked and recorded as [romStart, prgOffset,
+  // length]. Runs of one repeated byte carry nothing of the game and are skipped.
+  // -> {profile, ok (rebuilds the .prg exactly), blanked, romUsed}
+  function makeProfile(prg, rom, meta) {
+    const MIN = 8, key = (b, i) => (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0;
+    const idx = new Map();
+    for (let i = 0; i + 4 <= rom.length; i++) {
+      const k = key(rom, i);
+      if (!idx.has(k)) idx.set(k, []);
+      idx.get(k).push(i);
+    }
+    const segments = [];
+    for (let p = 2; p + 4 <= prg.length;) {      // (skip the 2-byte load address)
+      let best = 0, bestR = -1;
+      for (const r of idx.get(key(prg, p)) || []) {
+        let n = 0;
+        while (r + n < rom.length && p + n < prg.length && rom[r + n] === prg[p + n]) n++;
+        if (n > best) { best = n; bestR = r; }
+      }
+      let uniform = true;
+      for (let i = 1; i < best && uniform; i++) if (prg[p + i] !== prg[p]) uniform = false;
+      if (best >= MIN && !uniform) { segments.push([bestR, p, best]); p += best; } else p++;
+    }
+    const template = prg.slice();
+    for (const [, p, n] of segments) template.fill(0, p, p + n);
+    const profile = {
+      id: meta.id, title: meta.title, system: meta.system, original: meta.original, port: meta.port,
+      version: meta.version, romName: meta.romName, romSize: rom.length, md5: md5(rom),
+      fileName: meta.fileName, prgName: meta.prgName, diskName: meta.diskName, diskId: meta.diskId,
+      controls: meta.controls, segments, template: toBase64(template),
+    };
+    const rebuilt = buildPrg({ templateBytes: template, segments }, rom);
+    const ok = rebuilt.length === prg.length && rebuilt.every((b, i) => b === prg[i]);
+    const used = new Uint8Array(rom.length);
+    for (const [r, , n] of segments) used.fill(1, r, r + n);
+    return { profile, ok, blanked: segments.reduce((a, s) => a + s[2], 0), romUsed: used.reduce((a, b) => a + b, 0) };
+  }
+
+  // The text of a profile file (games/<id>.js)
+  function profileSource(profile) {
+    return `// ${profile.title} (${profile.system}) for the C64: builder profile.\n` +
+      `// Contains no original game code: every copy of the ROM's bytes is blanked; the user's ROM supplies them.\n` +
+      `Builder.addGame(${JSON.stringify(profile, null, 1)});\n`;
+  }
+
+  // The BASIC lines at the start of a .prg: [{num, text}] (REM and SYS spelled out)
+  function parseBasic(prg) {
+    const load = prg[0] | prg[1] << 8, lines = [];
+    let p = 2;
+    while (p + 4 < prg.length && lines.length < 100) {
+      const next = prg[p] | prg[p + 1] << 8;
+      if (!next) break;
+      const num = prg[p + 2] | prg[p + 3] << 8;
+      let q = p + 4, text = '';
+      while (q < prg.length && prg[q]) {
+        const c = prg[q++];
+        text += c === 0x8f ? 'REM' : c === 0x9e ? 'SYS' : c === 0x99 ? 'PRINT' : c >= 32 && c < 127 ? String.fromCharCode(c) : '';
+      }
+      lines.push({ num, text });
+      const np = next - load + 2;
+      if (np <= p) break;
+      p = np;
+    }
+    return lines;
+  }
+
+  return { games, md5, unzip, addGame, identify, buildPrg, buildD64, toBase64, makeProfile, profileSource, parseBasic };
 })();
 
 if (typeof module !== 'undefined') module.exports = Builder;
