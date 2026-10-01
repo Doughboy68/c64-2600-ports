@@ -113,8 +113,9 @@
     </div>
     <p class="small">Profiles are plain data files: they hold a port's C64 code with every byte of the
       original game blanked out, so they're safe to share. Your ROM, checked by MD5, fills the gaps.</p>
-    <p class="small"><span id="modeNote"></span> <a id="selfDownload" href="index.html" download="c64-2600-builder.html">Download
-      this page</a> to use it offline: it's one file. Version 2026-10-01.</p>
+    <p class="small"><span id="modeNote"></span> <span id="selfDownload" hidden><a href="index.html"
+      download="c64-2600-builder.html">Download this page</a> to use it offline: it's one file.</span>
+      Version 2026-10-01.</p>
   </section>
 
   <!-- ================================================================ make -->
@@ -502,6 +503,7 @@ if (typeof module !== 'undefined') module.exports = Builder;
     $('bDropHint').textContent = 'The .a26 file, or the .zip it came in. Or click to choose a file. ' +
       "Game not listed? Drop its profile (.json) too.";
     $('modeNote').textContent = "This page lists the site's games.";
+    $('selfDownload').hidden = false;      // (only on the website: an offline copy has nothing to link to)
   }).catch(() => {
     $('modeNote').textContent = 'Standalone: no game list here, so drop each ROM together with its profile.';
   });
