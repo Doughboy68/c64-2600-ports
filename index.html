@@ -96,8 +96,7 @@
   <button type="button" class="btn2" id="showGames" aria-expanded="false" aria-controls="gamesPanel">Supported games</button>
   <div class="panel" id="gamesPanel" hidden>
     <h2>Supported games</h2>
-    <p class="small">Each is made from the cartridge dump listed. Other dumps of the same game
-    work too if they contain the same code (the page checks every piece). Click a game for details.</p>
+    <p class="small">Each needs one exact cartridge dump, recognised by its MD5. Click a game for details.</p>
     <div id="gameList" class="small">Loading...</div>
   </div>
 
@@ -152,23 +151,19 @@
     try {
       const found = await Builder.identify(new Uint8Array(await file.arrayBuffer()));
       if (!found) {
-        status("This ROM isn't a supported version. It isn't one of the listed dumps, and it doesn't " +
-          'contain the code any of the ports need (other versions, such as PAL ones, can differ). ' +
-          'See "Supported games" for the exact files.', 'bad');
+        status('Not a ROM this page knows. It needs one of the exact cartridge dumps listed below ' +
+          '(checked by MD5), or a .zip containing one.', 'bad');
         return;
       }
       const g = found.game;
-      const prg = Builder.buildPrg(g, found.rom, found.at);
+      const prg = Builder.buildPrg(g, found.rom);
       const d64 = Builder.buildD64(prg, g.prgName, g.diskName, g.diskId);
       link('dlPrg', prg, g.fileName + '.prg');
       link('dlD64', d64, g.fileName + '.d64');
       $('rTitle').textContent = g.title + ' for the Commodore 64';
       $('rCredits').textContent = `${g.system} original by ${g.original}. C64 port by ${g.port}, version ${g.version}.`;
       $('rControls').innerHTML = (g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
-      status(found.exact
-        ? 'ROM recognised: ' + g.title + '. Your C64 version is ready:'
-        : `This isn't the listed ${g.romName}, but it contains all ${g.segments.length} pieces of ${g.title} ` +
-          'the port uses, unchanged, so your C64 version is identical. Ready:', 'ok');
+      status('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
       $('result').classList.add('show');
     } catch (e) {
       status('Something went wrong: ' + e.message, 'bad');
