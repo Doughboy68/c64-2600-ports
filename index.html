@@ -229,7 +229,8 @@ const Builder = (() => {
   // ---------------------------------------------------------------- games
   function addGame(g) {
     g.templateBytes = Uint8Array.from(atob(g.template), c => c.charCodeAt(0));
-    games.push(g);
+    const i = games.findIndex(x => x.md5 === g.md5);   // a newer profile for the same ROM replaces the old one
+    if (i >= 0) games[i] = g; else games.push(g);
   }
 
   // Which game is this file (a ROM, or a .zip holding one)? -> {game, rom} or null
@@ -520,10 +521,12 @@ if (typeof module !== 'undefined') module.exports = Builder;
       ? 'Profiles from your files: ' + dropped.map(g => g.title).join(', ') + '.' : '';
   };
 
+  // A dropped profile replaces the site's (or an earlier dropped) one for the same ROM,
+  // so a porter can try a new version of a listed game.
   function addProfile(profile, source) {
     const same = Builder.games.find(g => g.md5 === profile.md5);
-    if (same) return same;
     profile.dropped = source;
+    profile.overridesSite = !!same && (!same.dropped || same.overridesSite);
     Builder.addGame(profile);
     showLoaded();
     return profile;
@@ -569,7 +572,8 @@ if (typeof module !== 'undefined') module.exports = Builder;
     link('dlD64', Builder.buildD64(prg, g.prgName, g.diskName, g.diskId), g.fileName + '.d64');
     $('rTitle').textContent = g.title + ' for the Commodore 64';
     $('rCredits').textContent = `${g.system} original by ${g.original}. C64 port by ${g.port}, version ${g.version}.` +
-      (g.dropped && siteMode ? ` (Built with the profile from your file ${g.dropped}, not one of this site's games.)` : '');
+      (g.dropped && siteMode ? ` (Built with the profile from your file ${g.dropped}, ` +
+        (g.overridesSite ? "instead of this site's own profile for this game.)" : "not one of this site's games.)") : '');
     $('rControls').innerHTML = (g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
     bStatus('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
     $('bResult').classList.add('show');
