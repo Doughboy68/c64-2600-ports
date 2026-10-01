@@ -51,9 +51,17 @@
   table { border-collapse: collapse; width: 100%; }
   td { padding: 4px 8px 4px 0; vertical-align: top; }
   td:first-child { color: var(--ink-strong); white-space: nowrap; width: 1%; }
-  ul.games { list-style: none; padding: 0; margin: 0; }
-  ul.games li { padding: 8px 0; border-top: 1px solid var(--line); }
-  ul.games li:first-child { border-top: 0; }
+  .btn2 {
+    font: inherit; font-weight: bold; color: var(--ink-strong); background: var(--panel);
+    border: 2px solid var(--line); border-radius: 4px; padding: 10px 18px; margin-bottom: 20px; cursor: pointer;
+  }
+  .btn2:hover { border-color: var(--ink); }
+  .btn2:focus-visible, summary:focus-visible { outline: 3px solid var(--ink-strong); outline-offset: 3px; }
+  details { border-top: 1px solid var(--line); padding: 10px 0; }
+  details:first-child { border-top: 0; }
+  summary { cursor: pointer; color: var(--ink-strong); font-weight: bold; }
+  details > div { margin: 8px 0 0 18px; }
+  details table { margin-top: 8px; }
   .title { color: var(--ink-strong); font-weight: bold; }
   code { color: var(--ink-strong); word-break: break-all; }
   .small { font-size: 14px; }
@@ -85,9 +93,11 @@
     <p class="small">Everything happens in this page: your ROM is never uploaded anywhere.</p>
   </div>
 
-  <div class="panel">
-    <h2>Games</h2>
-    <ul class="games small" id="gameList"><li>Loading...</li></ul>
+  <button type="button" class="btn2" id="showGames" aria-expanded="false" aria-controls="gamesPanel">Supported games</button>
+  <div class="panel" id="gamesPanel" hidden>
+    <h2>Supported games</h2>
+    <p class="small">Each needs one exact cartridge dump, recognised by its MD5. Click a game for details.</p>
+    <div id="gameList" class="small">Loading...</div>
   </div>
 
   <p class="small">This page contains none of the original games. Each port stores only its C64
@@ -104,12 +114,21 @@
   // Load every profile listed in games/games.js (plain script tags: works from disk too)
   let pending = Builder.gameFiles.length;
   const done = () => {
-    $('gameList').innerHTML = Builder.games.length ? Builder.games.map(g =>
-      `<li><span class="title">${esc(g.title)}</span> (${esc(g.system)}, ${esc(g.original)})<br>` +
-      `C64 port by ${esc(g.port)}, version ${esc(g.version)}<br>` +
-      `ROM: <code>${esc(g.romName)}</code>, MD5 <code>${esc(g.md5)}</code></li>`).join('')
-      : '<li>No games found.</li>';
+    const games = Builder.games.slice().sort((a, b) => a.title.localeCompare(b.title));
+    $('gameList').innerHTML = games.length ? games.map(g =>
+      `<details><summary>${esc(g.title)}</summary><div>` +
+      `${esc(g.system)} original by ${esc(g.original)}.<br>C64 port by ${esc(g.port)}, version ${esc(g.version)}.<br>` +
+      `Needs: <code>${esc(g.romName)}</code> (${g.romSize} bytes)<br>MD5 <code>${esc(g.md5)}</code>` +
+      `<table>${(g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` +
+      `</div></details>`).join('')
+      : 'No games found.';
+    $('showGames').textContent = `Supported games (${games.length})`;
   };
+  $('showGames').addEventListener('click', () => {
+    const open = $('gamesPanel').hidden;
+    $('gamesPanel').hidden = !open;
+    $('showGames').setAttribute('aria-expanded', String(open));
+  });
   if (!pending) done();
   for (const f of Builder.gameFiles) {
     const s = document.createElement('script');
