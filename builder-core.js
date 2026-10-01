@@ -193,10 +193,27 @@ const Builder = (() => {
   }
 
   // The text of a profile file (games/<id>.js)
+  // The text of a profile file (games/<id>.json): plain data, never code. The
+  // "about" field says what it is; every copy of the ROM's bytes is blanked.
   function profileSource(profile) {
-    return `// ${profile.title} (${profile.system}) for the C64: builder profile.\n` +
-      `// Contains no original game code: every copy of the ROM's bytes is blanked; the user's ROM supplies them.\n` +
-      `Builder.addGame(${JSON.stringify(profile, null, 1)});\n`;
+    const about = `${profile.title} (${profile.system}) for the C64: builder profile. Contains no original game code: ` +
+      `every copy of the ROM's bytes is blanked, and the user's ROM supplies them.`;
+    return JSON.stringify({ about, ...profile }, null, 1) + '\n';
+  }
+
+  // Load the site's own profiles: games/index.json lists the files. Each is
+  // checked like a dropped one. -> number loaded (throws if the list can't be read)
+  async function loadHosted(base = 'games/') {
+    const list = await (await fetch(base + 'index.json')).json();
+    let n = 0;
+    for (const file of list.games || []) {
+      try {
+        const { profile, error } = parseProfile(await (await fetch(base + file)).text());
+        if (error) { console.warn(file + ': ' + error); continue; }
+        addGame(profile); n++;
+      } catch (e) { console.warn(file + ': ' + e.message); }
+    }
+    return n;
   }
 
   // The BASIC lines at the start of a .prg: [{num, text}] (REM and SYS spelled out)
@@ -220,7 +237,55 @@ const Builder = (() => {
     return lines;
   }
 
-  return { games, md5, unzip, addGame, identify, buildPrg, buildD64, toBase64, makeProfile, profileSource, parseBasic };
+  // ---------------------------------------------------------------- profiles from files
+  // A profile someone dropped on the page is read as data, never run: only the
+  // object inside Builder.addGame(...) (or a bare JSON object) is parsed, then
+  // every field is checked. -> {profile} or {error}
+  function parseProfile(text) {
+    let start = text.indexOf('Builder.addGame(');
+    start = start >= 0 ? text.indexOf('{', start) : text.search(/\S/);
+    if (start < 0 || text[start] !== '{') return { error: "this file doesn't contain a game profile" };
+    let depth = 0, inStr = false, end = -1;              // find the object's closing brace
+    for (let i = start; i < text.length && end < 0; i++) {
+      const c = text[i];
+      if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; }
+      else if (c === '"') inStr = true;
+      else if (c === '{') depth++;
+      else if (c === '}' && --depth === 0) end = i;
+    }
+    if (end < 0) return { error: 'the profile is incomplete' };
+    let p;
+    try { p = JSON.parse(text.slice(start, end + 1)); } catch (e) { return { error: 'the profile is damaged (' + e.message + ')' }; }
+    const error = checkProfile(p);
+    return error ? { error } : { profile: p };
+  }
+
+  function checkProfile(p) {
+    const str = (v, max, re) => typeof v === 'string' && v.length > 0 && v.length <= max && (!re || re.test(v));
+    const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return 'not a profile';
+    if (!str(p.id, 40, /^[a-z0-9-]+$/)) return 'bad id';
+    for (const k of ['title', 'system', 'original', 'port', 'version', 'romName']) if (!str(p[k], 200)) return 'missing or bad ' + k;
+    if (!str(p.fileName, 40, /^[A-Za-z0-9._-]+$/)) return 'bad fileName';
+    for (const k of ['prgName', 'diskName']) if (!str(p[k], 16, /^[\x20-\x5f\x61-\x7a]+$/)) return 'bad ' + k;
+    if (!str(p.diskId, 2, /^[\x20-\x5f\x61-\x7a]+$/)) return 'bad diskId';
+    if (!str(p.md5, 32, /^[0-9a-f]{32}$/)) return 'bad md5';
+    if (!int(p.romSize, 1, 65536)) return 'bad romSize';
+    if (p.controls !== undefined && !(Array.isArray(p.controls) && p.controls.length <= 50 &&
+      p.controls.every(c => Array.isArray(c) && c.length === 2 && c.every(s => typeof s === 'string' && s.length <= 200)))) return 'bad controls';
+    if (typeof p.template !== 'string' || p.template.length > 120000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(p.template)) return 'bad template';
+    let t;
+    try { t = atob(p.template); } catch { return 'bad template'; }
+    if (t.length < 3 || t.length > 65538) return 'bad template size';
+    if (!Array.isArray(p.segments) || p.segments.length > 20000) return 'bad segments';
+    for (const s of p.segments) {
+      if (!Array.isArray(s) || s.length < 3 || !int(s[0], 0, p.romSize - 1) || !int(s[2], 1, p.romSize) || s[0] + s[2] > p.romSize ||
+        !int(s[1], 2, t.length - 1) || s[1] + s[2] > t.length) return 'bad segments';
+    }
+    return null;
+  }
+
+  return { games, md5, unzip, addGame, loadHosted, identify, buildPrg, buildD64, toBase64, makeProfile, profileSource, parseBasic, parseProfile, checkProfile };
 })();
 
 if (typeof module !== 'undefined') module.exports = Builder;

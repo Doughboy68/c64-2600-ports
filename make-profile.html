@@ -99,9 +99,10 @@
     <h2>3. Your profile</h2>
     <div id="summary" class="small"></div>
     <a class="btn" id="download">Download profile</a>
-    <p class="small">Send this file to the site's maintainer (or open a pull request adding it to the
-      <code>games</code> folder of the site's repository). It holds your C64 code with every byte of
-      the original ROM blanked out, so it can be shared freely.</p>
+    <p class="small">It's a plain data file holding your C64 code with every byte of the original ROM
+      blanked out, so it can be shared freely: post it anywhere. Anyone can drop it on the
+      <a href="./">builder</a> together with their own ROM, or send it to the site's maintainer to be listed
+      there (it goes in the site's <code>games</code> folder).</p>
   </div>
 </main>
 
@@ -202,13 +203,13 @@
       `<tr><td>Game</td><td>${esc(title)} (C64 port by ${esc(meta.port)}, version ${esc(meta.version)})</td></tr>` +
       `<tr><td>ROM</td><td><code class="long">${esc(meta.romName)}</code>, ${rom.length} bytes, MD5 <code class="long">${profile.md5}</code></td></tr>` +
       `<tr><td>Original game used</td><td>${romUsed} of ${rom.length} ROM bytes (${pct}%), in ${profile.segments.length} pieces, all blanked (${blanked} bytes)</td></tr>` +
-      `<tr><td>File</td><td><code>${esc(id)}.js</code></td></tr></table>`;
+      `<tr><td>File</td><td><code>${esc(id)}.json</code></td></tr></table>`;
     $('summary').innerHTML = html;
     const a = $('download');
     if (a.href) { URL.revokeObjectURL(a.href); a.removeAttribute('href'); }
     if (matches) {
-      a.href = URL.createObjectURL(new Blob([Builder.profileSource(profile)], { type: 'text/javascript' }));
-      a.download = id + '.js';
+      a.href = URL.createObjectURL(new Blob([Builder.profileSource(profile)], { type: 'application/json' }));
+      a.download = id + '.json';
     }
     a.style.display = matches ? '' : 'none';
     $('result').classList.add('show');

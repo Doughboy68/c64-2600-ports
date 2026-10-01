@@ -74,11 +74,12 @@
   <p class="sub">Atari 2600 games ported to the Commodore 64. Build them from your own cartridge ROMs.</p>
 
   <div class="panel">
-    <div id="drop" tabindex="0" role="button" aria-label="Choose a 2600 ROM">
+    <div id="drop" tabindex="0" role="button" aria-label="Choose a 2600 ROM, and a game profile if the game isn't listed">
       <strong>Drop a 2600 ROM here</strong>
       <span>The .a26 file, or the .zip it came in. Or click to choose a file.</span>
+      <span class="small" style="display: block; margin-top: 8px">Game not listed? Drop its profile (.json) too.</span>
     </div>
-    <input id="file" type="file" accept=".a26,.bin,.rom,.zip" hidden>
+    <input id="file" type="file" multiple accept=".a26,.bin,.rom,.zip,.js,.json" hidden>
     <p id="status" role="status"></p>
     <div id="result">
       <div class="title" id="rTitle"></div>
@@ -108,18 +109,18 @@
 </main>
 
 <script src="builder-core.js"></script>
-<script src="games/games.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  // Load every profile listed in games/games.js (plain script tags: works from disk too)
-  let pending = Builder.gameFiles.length;
+  // Load this site's profiles (games/index.json lists them). Profiles are plain
+  // data: they are read and checked, never run.
   const done = () => {
     const games = Builder.games.slice().sort((a, b) => a.title.localeCompare(b.title));
     $('gameList').innerHTML = games.length ? games.map(g =>
-      `<details><summary>${esc(g.title)}</summary><div>` +
+      `<details><summary>${esc(g.title)}${g.dropped ? ' (from your file)' : ''}</summary><div>` +
+      (g.dropped ? `Profile from <code class="long">${esc(g.dropped)}</code>, not one of this site's games.<br>` : '') +
       `${esc(g.system)} original by ${esc(g.original)}.<br>C64 port by ${esc(g.port)}, version ${esc(g.version)}.<br>` +
       `Needs: <code class="long">${esc(g.romName)}</code> (${g.romSize} bytes)<br>MD5 <code class="long">${esc(g.md5)}</code>` +
       `<table>${(g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` +
@@ -132,13 +133,13 @@
     $('gamesPanel').hidden = !open;
     $('showGames').setAttribute('aria-expanded', String(open));
   });
-  if (!pending) done();
-  for (const f of Builder.gameFiles) {
-    const s = document.createElement('script');
-    s.src = 'games/' + f;
-    s.onload = s.onerror = () => { if (--pending === 0) done(); };
-    document.head.appendChild(s);
-  }
+  Builder.loadHosted().then(done, () => {
+    done();
+    $('gameList').textContent = location.protocol === 'file:'
+      ? "Opened straight from disk, the page can't read its list of games (browsers don't allow it). " +
+        'Use it from the website, or drop a ROM together with its profile (.json).'
+      : "The list of games couldn't be loaded. You can still drop a ROM together with its profile (.json).";
+  });
 
   const status = (msg, cls) => { $('status').textContent = msg; $('status').className = cls || ''; };
   const link = (id, bytes, name) => {
@@ -148,41 +149,68 @@
     a.download = name;
   };
 
-  async function handle(file) {
+  // A profile someone drops is read and checked the same way as the site's own
+  // (Builder.parseProfile), so a file found elsewhere can't run code on this page.
+  let lastRom = null, lastProfile = null;
+  const looksLikeProfile = (name, bytes) => /.(js|json)$/i.test(name) ||
+    (bytes.length && (bytes[0] === 0x2f || bytes[0] === 0x7b) && bytes.length < 200000);
+
+  async function handleFiles(files) {
     $('result').classList.remove('show');
-    status('Reading ' + file.name + '...');
     try {
-      const found = await Builder.identify(new Uint8Array(await file.arrayBuffer()));
-      if (!found) {
-        status("This ROM isn't supported. Each game needs the exact cartridge dump it was built from " +
-          '(other versions, such as PAL ones, differ), or a .zip containing it. ' +
-          'See "Supported games" for the file names and MD5s.', 'bad');
-        return;
+      let rom = null;
+      for (const file of files) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        if (!looksLikeProfile(file.name, bytes)) { rom = { bytes, name: file.name }; continue; }
+        const { profile, error } = Builder.parseProfile(new TextDecoder().decode(bytes));
+        if (error) { status(`${file.name} isn't a usable game profile: ${error}.`, 'bad'); return; }
+        const same = Builder.games.find(g => g.md5 === profile.md5);
+        if (same) lastProfile = same;              // already here (one of the site's games, or dropped before)
+        else { profile.dropped = file.name; Builder.addGame(profile); lastProfile = profile; done(); }
       }
-      const g = found.game;
-      const prg = Builder.buildPrg(g, found.rom);
-      const d64 = Builder.buildD64(prg, g.prgName, g.diskName, g.diskId);
-      link('dlPrg', prg, g.fileName + '.prg');
-      link('dlD64', d64, g.fileName + '.d64');
-      $('rTitle').textContent = g.title + ' for the Commodore 64';
-      $('rCredits').textContent = `${g.system} original by ${g.original}. C64 port by ${g.port}, version ${g.version}.`;
-      $('rControls').innerHTML = (g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
-      status('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
-      $('result').classList.add('show');
+      if (rom) lastRom = rom;
+      if (lastRom) return build(lastRom);
+      if (lastProfile) status(`Profile loaded: ${lastProfile.title}. Now drop its ROM: ${lastProfile.romName}.`, 'ok');
     } catch (e) {
       status('Something went wrong: ' + e.message, 'bad');
     }
   }
 
+  async function build(rom) {
+    status('Reading ' + rom.name + '...');
+    const found = await Builder.identify(rom.bytes);
+    if (!found) {
+      if (lastProfile && lastProfile.dropped)
+        status(`This ROM doesn't match the profile you dropped (${lastProfile.title}). It needs the exact ` +
+          `${lastProfile.romName}, MD5 ${lastProfile.md5}.`, 'bad');
+      else
+        status("This ROM isn't supported. Each game needs the exact cartridge dump it was built from " +
+          '(other versions, such as PAL ones, differ), or a .zip containing it. ' +
+          "See \"Supported games\" for the file names and MD5s. If the game isn't listed, drop its profile (.json) too.", 'bad');
+      return;
+    }
+    const g = found.game;
+    const prg = Builder.buildPrg(g, found.rom);
+    const d64 = Builder.buildD64(prg, g.prgName, g.diskName, g.diskId);
+    link('dlPrg', prg, g.fileName + '.prg');
+    link('dlD64', d64, g.fileName + '.d64');
+    $('rTitle').textContent = g.title + ' for the Commodore 64';
+    $('rCredits').textContent = `${g.system} original by ${g.original}. C64 port by ${g.port}, version ${g.version}.` +
+      (g.dropped ? ` (Built with the profile from your file ${g.dropped}, not one of this site's games.)` : '');
+    $('rControls').innerHTML = (g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+    status('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
+    $('result').classList.add('show');
+  }
+
   const drop = $('drop'), input = $('file');
   drop.addEventListener('click', () => input.click());
   drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-  input.addEventListener('change', () => { if (input.files[0]) handle(input.files[0]); input.value = ''; });
+  input.addEventListener('change', () => { if (input.files.length) handleFiles([...input.files]); input.value = ''; });
   ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
   window.addEventListener('dragover', e => e.preventDefault());
-  window.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
-  window.Site = { handle };   // (lets tests feed in a file)
+  window.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files.length) handleFiles([...e.dataTransfer.files]); });
+  window.Site = { handleFiles, handle: f => handleFiles([f]) };   // (lets tests feed in files)
 })();
 </script>
 </body>
