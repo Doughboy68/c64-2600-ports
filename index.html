@@ -4,214 +4,695 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2600 to C64 Builder</title>
+<!-- The 2600 -> C64 builder: https://doughboy68.github.io/c64-2600-ports/ (made by tools/mkpage.js).
+     One self-contained file. Next to a games/ folder of profiles (as on the website) it lists those
+     games; saved to disk and opened on its own, it works standalone: drop a ROM together with its profile. -->
 <style>
   :root {
-    --bg: #40318d;           /* C64 blue */
-    --panel: #352879;
-    --ink: #a59bff;          /* C64 light blue */
-    --ink-strong: #ffffff;
-    --accent: #eff347;
-    --ok: #91ff84;
-    --bad: #ff8a8a;
-    --line: #6c5eb5;
+    --bg: #40318d; --panel: #352879; --ink: #a59bff; --ink-strong: #ffffff;
+    --accent: #eff347; --ok: #91ff84; --bad: #ff8a8a; --line: #6c5eb5; --field: #2a1f66;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
       --bg: #e9e6fb; --panel: #ffffff; --ink: #3a2f86; --ink-strong: #1b1446;
-      --accent: #8a6d00; --ok: #1d7a12; --bad: #b3261e; --line: #c9c2f2;
+      --accent: #8a6d00; --ok: #1d7a12; --bad: #b3261e; --line: #c9c2f2; --field: #f6f4ff;
     }
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 16px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
-  }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; }
   main { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
   h1 { color: var(--ink-strong); font-size: 26px; letter-spacing: 2px; margin: 0 0 4px; }
   h2 { color: var(--ink-strong); font-size: 18px; margin: 0 0 12px; }
-  .sub { margin: 0 0 24px; }
+  a { color: var(--ink-strong); }
+  .sub { margin: 0 0 20px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    font: inherit; font-weight: bold; color: var(--ink); background: transparent; cursor: pointer;
+    border: 2px solid var(--line); border-radius: 4px; padding: 8px 16px;
+  }
+  .tab[aria-selected="true"] { color: var(--ink-strong); background: var(--panel); border-color: var(--ink); }
   .panel { background: var(--panel); border: 2px solid var(--line); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
-  #drop {
-    border: 2px dashed var(--ink); border-radius: 6px; padding: 32px 16px; text-align: center;
-    cursor: pointer; transition: background .15s;
+  .drop { border: 2px dashed var(--ink); border-radius: 6px; padding: 28px 16px; text-align: center; cursor: pointer; }
+  .drop.over { background: rgba(255,255,255,.08); }
+  .drop strong { color: var(--ink-strong); display: block; font-size: 18px; margin-bottom: 6px; }
+  .tab:focus-visible, .drop:focus-visible, button:focus-visible, a.btn:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 3px solid var(--ink-strong); outline-offset: 2px;
   }
-  #drop.over { background: rgba(255,255,255,.08); }
-  #drop strong { color: var(--ink-strong); display: block; font-size: 18px; margin-bottom: 6px; }
-  #status { min-height: 1.5em; margin: 16px 0 0; }
-  #status.ok { color: var(--ok); }
-  #status.bad { color: var(--bad); }
-  #result { display: none; margin-top: 16px; }
-  #result.show { display: block; }
+  .status { min-height: 1.5em; margin: 16px 0 0; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+  .result { display: none; margin-top: 16px; } .result.show { display: block; }
+  .title { color: var(--ink-strong); font-weight: bold; }
   .buttons { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
-  a.btn {
-    display: inline-block; background: var(--accent); color: #1b1446; font-weight: bold;
-    text-decoration: none; padding: 10px 18px; border-radius: 4px;
+  a.btn, button.btn {
+    display: inline-block; font: inherit; font-weight: bold; background: var(--accent); color: #1b1446;
+    border: 0; border-radius: 4px; padding: 10px 18px; cursor: pointer; text-decoration: none;
   }
-  a.btn:focus-visible, #drop:focus-visible { outline: 3px solid var(--ink-strong); outline-offset: 3px; }
+  button.btn:disabled { opacity: .5; cursor: default; }
   table { border-collapse: collapse; width: 100%; }
   td { padding: 4px 8px 4px 0; vertical-align: top; }
   td:first-child { color: var(--ink-strong); white-space: nowrap; width: 1%; }
-  .btn2 {
-    font: inherit; font-weight: bold; color: var(--ink-strong); background: var(--panel);
-    border: 2px solid var(--line); border-radius: 4px; padding: 10px 18px; margin-bottom: 20px; cursor: pointer;
+  code { color: var(--ink-strong); white-space: nowrap; }
+  code.long { white-space: normal; overflow-wrap: anywhere; word-break: break-all; }
+  label { display: block; color: var(--ink-strong); margin: 12px 0 4px; font-size: 14px; }
+  input, textarea {
+    width: 100%; font: inherit; font-size: 15px; color: var(--ink-strong); background: var(--field);
+    border: 2px solid var(--line); border-radius: 4px; padding: 8px;
   }
-  .btn2:hover { border-color: var(--ink); }
-  .btn2:focus-visible, summary:focus-visible { outline: 3px solid var(--ink-strong); outline-offset: 3px; }
-  details { border-top: 1px solid var(--line); padding: 10px 0; }
-  details:first-child { border-top: 0; }
-  summary { cursor: pointer; color: var(--ink-strong); font-weight: bold; }
-  details > div { margin: 8px 0 0 18px; }
-  details table { margin-top: 8px; }
-  .title { color: var(--ink-strong); font-weight: bold; }
-  code { color: var(--ink-strong); white-space: nowrap; }         /* short words like LIST never split */
-  code.long { white-space: normal; overflow-wrap: anywhere; word-break: break-all; }   /* MD5s, file names */
+  textarea { min-height: 140px; resize: vertical; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+  pre { white-space: pre-wrap; font: inherit; font-size: 13px; margin: 8px 0 0; color: var(--ink-strong); }
+  details summary { cursor: pointer; color: var(--ink-strong); }
+  #gameList details { border-top: 1px solid var(--line); padding: 10px 0; }
+  #gameList details:first-child { border-top: 0; }
+  #gameList details > div { margin: 8px 0 0 18px; }
+  #gameList table { margin-top: 8px; }
   .small { font-size: 14px; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
   <h1>ATARI 2600 &rarr; C64</h1>
-  <p class="sub">Atari 2600 games ported to the Commodore 64. Build them from your own cartridge ROMs.</p>
+  <p class="sub">Atari 2600 games ported to the Commodore 64. Build them from your own cartridge ROMs.
+    Everything happens in this page; nothing is uploaded.</p>
 
-  <div class="panel">
-    <div id="drop" tabindex="0" role="button" aria-label="Choose a 2600 ROM, and a game profile if the game isn't listed">
-      <strong>Drop a 2600 ROM here</strong>
-      <span>The .a26 file, or the .zip it came in. Or click to choose a file.</span>
-      <span class="small" style="display: block; margin-top: 8px">Game not listed? Drop its profile (.json) too.</span>
-    </div>
-    <input id="file" type="file" multiple accept=".a26,.bin,.rom,.zip,.json" hidden>
-    <p id="status" role="status"></p>
-    <div id="result">
-      <div class="title" id="rTitle"></div>
-      <div class="small" id="rCredits"></div>
-      <div class="buttons">
-        <a class="btn" id="dlPrg">Download .prg</a>
-        <a class="btn" id="dlD64">Download .d64 disk</a>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabBuild" aria-selected="true" aria-controls="paneBuild">Build a game</button>
+    <button class="tab" role="tab" id="tabMake" aria-selected="false" aria-controls="paneMake">Make a profile</button>
+  </div>
+
+  <!-- ================================================================ build -->
+  <section id="paneBuild" role="tabpanel" aria-labelledby="tabBuild">
+    <div class="panel">
+      <div class="drop" id="bDrop" tabindex="0" role="button" aria-label="Choose a ROM and its profile">
+        <strong id="bDropTitle">Drop a 2600 ROM and the game's profile here</strong>
+        <span id="bDropHint">The ROM as .a26 (or the .zip it came in), and the profile as .json. Together, or one after
+          the other. Or click to choose files.</span>
       </div>
-      <p class="small">Open either in an emulator such as VICE, or on a real C64 load from disk
-        and <code>RUN</code> (<code>LIST</code> first shows the credits).</p>
-      <table class="small" id="rControls"></table>
+      <input id="bFile" type="file" multiple accept=".a26,.bin,.rom,.zip,.json" hidden>
+      <p class="status" id="bStatus" role="status"></p>
+      <div class="result" id="bResult">
+        <div class="title" id="rTitle"></div>
+        <div class="small" id="rCredits"></div>
+        <div class="buttons">
+          <a class="btn" id="dlPrg">Download .prg</a>
+          <a class="btn" id="dlD64">Download .d64 disk</a>
+        </div>
+        <p class="small">Open either in an emulator such as VICE, or on a real C64 load from disk
+          and <code>RUN</code> (<code>LIST</code> first shows the credits).</p>
+        <table class="small" id="rControls"></table>
+      </div>
+      <p class="small" id="loaded"></p>
     </div>
-    <p class="small">Everything happens in this page: your ROM is never uploaded anywhere.</p>
-  </div>
+    <button type="button" class="tab" id="showGames" aria-expanded="false" aria-controls="gamesPanel" hidden>Supported games</button>
+    <div class="panel" id="gamesPanel" style="margin-top: 16px" hidden>
+      <h2>Supported games</h2>
+      <p class="small">Each needs one exact cartridge dump, recognised by its MD5. Click a game for details.</p>
+      <div id="gameList" class="small"></div>
+    </div>
+    <p class="small">Profiles are plain data files: they hold a port's C64 code with every byte of the
+      original game blanked out, so they're safe to share. Your ROM, checked by MD5, fills the gaps.</p>
+    <p class="small"><span id="modeNote"></span> <a id="selfDownload" href="index.html" download="c64-2600-builder.html">Download
+      this page</a> to use it offline: it's one file. Version 2026-10-01.</p>
+  </section>
 
-  <button type="button" class="btn2" id="showGames" aria-expanded="false" aria-controls="gamesPanel">Supported games</button>
-  <div class="panel" id="gamesPanel" hidden>
-    <h2>Supported games</h2>
-    <p class="small">Each needs one exact cartridge dump, recognised by its MD5. Click a game for details.</p>
-    <div id="gameList" class="small">Loading...</div>
-  </div>
-
-  <p class="small">This page contains none of the original games. Each port stores only its C64
-    code, with the original's bytes left out; your ROM supplies them.</p>
-  <p class="small">Made a C64 port of a 2600 game? <a href="make-profile.html" style="color: var(--ink-strong)">Make a profile</a>
-    for it, so others can build it from their own ROM.</p>
+  <!-- ================================================================ make -->
+  <section id="paneMake" role="tabpanel" aria-labelledby="tabMake" hidden>
+    <div class="panel">
+      <h2>1. Your files</h2>
+      <div class="drop" id="mDrop" tabindex="0" role="button" aria-label="Choose your .prg and ROM">
+        <strong>Drop your .prg and the original ROM here</strong>
+        <span>Both at once, or one after the other. The ROM can be the .a26 or the .zip it came in.
+          Or click to choose files.</span>
+      </div>
+      <input id="mFile" type="file" multiple accept=".prg,.a26,.bin,.rom,.zip" hidden>
+      <div class="small" id="mFiles" style="margin-top: 12px"></div>
+    </div>
+    <div class="panel">
+      <h2>2. About the game</h2>
+      <p class="small">Filled in from your .prg's BASIC lines where possible. Check and correct.</p>
+      <label for="fTitle">Title</label>
+      <input id="fTitle" placeholder="Space Invaders">
+      <div class="row">
+        <div><label for="fOriginal">Original by</label><input id="fOriginal" placeholder="Rick Maurer (Atari, 1980)"></div>
+        <div><label for="fPort">C64 port by</label><input id="fPort" placeholder="Your name"></div>
+      </div>
+      <div class="row">
+        <div><label for="fVersion">Version</label><input id="fVersion" placeholder="1.0"></div>
+        <div><label for="fRomName">ROM file name</label><input id="fRomName" placeholder="Space Invaders (USA).a26"></div>
+      </div>
+      <label for="fControls">Controls: one per line, key, then " - ", then what it does</label>
+      <textarea id="fControls" placeholder="A / D, Space - Player 1: move, fire&#10;F1 - Start a game"></textarea>
+      <details class="small" id="basicBox" hidden><summary>Your .prg's BASIC lines</summary><pre id="basic"></pre></details>
+      <button type="button" class="btn" id="make" style="margin-top: 16px" disabled>Make profile</button>
+      <p class="small" id="needs">Drop your .prg and ROM first.</p>
+    </div>
+    <div class="panel result" id="mResult">
+      <h2>3. Your profile</h2>
+      <div id="summary" class="small"></div>
+      <div class="buttons">
+        <a class="btn" id="download">Download profile</a>
+        <button type="button" class="btn" id="useIt">Use it to build now</button>
+      </div>
+      <p class="small">It's a plain data file holding your C64 code with every byte of the original ROM
+        blanked out, so it can be shared freely. Anyone can build your port from it with their own ROM.</p>
+    </div>
+  </section>
 </main>
 
-<script src="builder-core.js"></script>
+<script>
+// C64 port builder: turns a user's own Atari 2600 ROM into a C64 .prg and .d64.
+// Each game is a "profile" (games/<id>.js) holding the finished C64 program with
+// every byte of the original game blanked, plus where the ROM's bytes go back in.
+// So no original game code is ever stored here. Runs in browsers and in Node.
+
+const Builder = (() => {
+  const games = [];
+
+  // ---------------------------------------------------------------- MD5
+  function md5(bytes) {
+    const K = new Uint32Array(64), S = [7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21];
+    for (let i = 0; i < 64; i++) K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 2 ** 32) >>> 0;
+    const len = bytes.length, total = ((len + 8) >> 6) + 1, M = new Uint32Array(total * 16);
+    for (let i = 0; i < len; i++) M[i >> 2] |= bytes[i] << ((i % 4) * 8);
+    M[len >> 2] |= 0x80 << ((len % 4) * 8);
+    M[total * 16 - 2] = (len * 8) >>> 0;
+    M[total * 16 - 1] = Math.floor(len / 2 ** 29);
+    let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+    for (let blk = 0; blk < total * 16; blk += 16) {
+      let a = a0, b = b0, c = c0, d = d0;
+      for (let i = 0; i < 64; i++) {
+        let f, g;
+        if (i < 16) { f = (b & c) | (~b & d); g = i; }
+        else if (i < 32) { f = (d & b) | (~d & c); g = (5 * i + 1) % 16; }
+        else if (i < 48) { f = b ^ c ^ d; g = (3 * i + 5) % 16; }
+        else { f = c ^ (b | ~d); g = (7 * i) % 16; }
+        const tmp = d; d = c; c = b;
+        const x = (a + f + K[i] + M[blk + g]) >>> 0, s = S[(i >> 4) * 4 + (i % 4)];
+        b = (b + ((x << s) | (x >>> (32 - s)))) >>> 0;
+        a = tmp;
+      }
+      a0 = (a0 + a) >>> 0; b0 = (b0 + b) >>> 0; c0 = (c0 + c) >>> 0; d0 = (d0 + d) >>> 0;
+    }
+    return [a0, b0, c0, d0].map(v => [0, 8, 16, 24].map(s => ((v >>> s) & 255).toString(16).padStart(2, '0')).join('')).join('');
+  }
+
+  // ---------------------------------------------------------------- ZIP
+  // [{name, data}] for every stored or deflated file in a .zip
+  async function unzip(bytes) {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), out = [];
+    let p = 0;
+    while (p + 30 <= bytes.length && dv.getUint32(p, true) === 0x04034b50) {
+      const flags = dv.getUint16(p + 6, true), method = dv.getUint16(p + 8, true);
+      let csize = dv.getUint32(p + 18, true);
+      const nlen = dv.getUint16(p + 26, true), xlen = dv.getUint16(p + 28, true);
+      const name = new TextDecoder().decode(bytes.subarray(p + 30, p + 30 + nlen));
+      const start = p + 30 + nlen + xlen;
+      if (flags & 8) {          // sizes in a trailing data descriptor: find the next header
+        let q = start;
+        while (q + 4 <= bytes.length && dv.getUint32(q, true) !== 0x04034b50 && dv.getUint32(q, true) !== 0x02014b50) q++;
+        csize = q - start - (dv.getUint32(q - 16, true) === 0x08074b50 ? 16 : 12);
+      }
+      const raw = bytes.subarray(start, start + csize);
+      if (method === 0) out.push({ name, data: raw.slice() });
+      else if (method === 8) {
+        const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        out.push({ name, data: new Uint8Array(await new Response(stream).arrayBuffer()) });
+      }
+      p = start + csize + (flags & 8 ? 16 : 0);
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- games
+  function addGame(g) {
+    g.templateBytes = Uint8Array.from(atob(g.template), c => c.charCodeAt(0));
+    games.push(g);
+  }
+
+  // Which game is this file (a ROM, or a .zip holding one)? -> {game, rom} or null
+  async function identify(bytes) {
+    const match = data => { const h = md5(data); return games.find(g => g.md5 === h); };
+    let g = match(bytes);
+    if (g) return { game: g, rom: bytes };
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+      for (const f of await unzip(bytes)) { g = match(f.data); if (g) return { game: g, rom: f.data }; }
+    }
+    return null;
+  }
+
+  // Put the ROM's bytes back into the template: segments are [romStart, prgOffset, length]
+  function buildPrg(game, rom) {
+    const out = game.templateBytes.slice();
+    for (const [r, p, n] of game.segments) out.set(rom.subarray(r, r + n), p);
+    return out;
+  }
+
+  // ---------------------------------------------------------------- D64
+  // A standard 35-track 1541 disk holding one PRG file
+  function buildD64(file, fileName, diskName, diskId) {
+    const spt = t => t <= 17 ? 21 : t <= 24 ? 19 : t <= 30 ? 18 : 17;
+    const tracks = 35, off = [];
+    let o = 0;
+    for (let t = 1; t <= tracks; t++) { off[t] = o; o += spt(t) * 256; }
+    const img = new Uint8Array(o);
+    const used = Array.from({ length: tracks + 1 }, (_, t) => new Uint8Array(t ? spt(t) : 0));
+    const at = (t, s) => off[t] + s * 256;
+    const petscii = (str, n) => { const b = new Uint8Array(n).fill(0xa0); for (let i = 0; i < Math.min(n, str.length); i++) b[i] = str.toUpperCase().charCodeAt(i); return b; };
+
+    // allocate like the 1541 does: tracks outward from the directory, 10-sector interleave
+    const order = [];
+    for (let t = 17; t >= 1; t--) order.push(t);
+    for (let t = 19; t <= tracks; t++) order.push(t);
+    const chain = [], blocks = Math.ceil(file.length / 254);
+    let ti = 0, s = 0;
+    while (chain.length < blocks) {
+      if (ti >= order.length) throw new Error('the program does not fit on a disk');
+      const t = order[ti], n = spt(t);
+      let tries = 0;
+      while (used[t][s] && tries < n) { s = (s + 1) % n; tries++; }
+      if (used[t][s]) { ti++; s = 0; continue; }
+      used[t][s] = 1; chain.push([t, s]);
+      s = (s + 10) % n;
+      if (used[t].every(Boolean)) { ti++; s = 0; }
+    }
+    chain.forEach(([t, s], i) => {
+      const p = at(t, s), part = file.subarray(i * 254, (i + 1) * 254);
+      if (i + 1 < chain.length) { img[p] = chain[i + 1][0]; img[p + 1] = chain[i + 1][1]; }
+      else { img[p] = 0; img[p + 1] = part.length + 1; }
+      img.set(part, p + 2);
+    });
+
+    used[18][0] = used[18][1] = 1;                // directory: track 18 sector 1
+    const dir = at(18, 1);
+    img[dir] = 0; img[dir + 1] = 0xff;
+    img[dir + 2] = 0x82;                          // closed PRG
+    img[dir + 3] = chain[0][0]; img[dir + 4] = chain[0][1];
+    img.set(petscii(fileName, 16), dir + 5);
+    img[dir + 30] = blocks & 255; img[dir + 31] = blocks >> 8;
+
+    const bam = at(18, 0);                        // block availability map: track 18 sector 0
+    img[bam] = 18; img[bam + 1] = 1; img[bam + 2] = 0x41;
+    for (let t = 1; t <= tracks; t++) {
+      let free = 0, bits = 0;
+      for (let k = 0; k < spt(t); k++) if (!used[t][k]) { free++; bits |= 1 << k; }
+      const e = bam + 4 * t;
+      img[e] = free; img[e + 1] = bits & 255; img[e + 2] = (bits >> 8) & 255; img[e + 3] = (bits >> 16) & 255;
+    }
+    img.set(petscii(diskName, 16), bam + 0x90);
+    img[bam + 0xa0] = img[bam + 0xa1] = 0xa0;
+    img.set(petscii(diskId, 2), bam + 0xa2);
+    img[bam + 0xa4] = 0xa0;
+    img[bam + 0xa5] = 0x32; img[bam + 0xa6] = 0x41;     // DOS type "2A"
+    img[bam + 0xa7] = img[bam + 0xa8] = img[bam + 0xa9] = img[bam + 0xaa] = 0xa0;
+    return img;
+  }
+
+  // ---------------------------------------------------------------- making profiles
+  function toBase64(bytes) {
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+
+  // Turn a finished C64 port (.prg) and the ROM it was made from into a profile.
+  // Every stretch of the .prg that is a copy of the ROM (8+ bytes, wherever and
+  // however often it occurs) is blanked and recorded as [romStart, prgOffset,
+  // length]. Runs of one repeated byte carry nothing of the game and are skipped.
+  // -> {profile, ok (rebuilds the .prg exactly), blanked, romUsed}
+  function makeProfile(prg, rom, meta) {
+    const MIN = 8, key = (b, i) => (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0;
+    const idx = new Map();
+    for (let i = 0; i + 4 <= rom.length; i++) {
+      const k = key(rom, i);
+      if (!idx.has(k)) idx.set(k, []);
+      idx.get(k).push(i);
+    }
+    const segments = [];
+    for (let p = 2; p + 4 <= prg.length;) {      // (skip the 2-byte load address)
+      let best = 0, bestR = -1;
+      for (const r of idx.get(key(prg, p)) || []) {
+        let n = 0;
+        while (r + n < rom.length && p + n < prg.length && rom[r + n] === prg[p + n]) n++;
+        if (n > best) { best = n; bestR = r; }
+      }
+      let uniform = true;
+      for (let i = 1; i < best && uniform; i++) if (prg[p + i] !== prg[p]) uniform = false;
+      if (best >= MIN && !uniform) { segments.push([bestR, p, best]); p += best; } else p++;
+    }
+    const template = prg.slice();
+    for (const [, p, n] of segments) template.fill(0, p, p + n);
+    const profile = {
+      id: meta.id, title: meta.title, system: meta.system, original: meta.original, port: meta.port,
+      version: meta.version, romName: meta.romName, romSize: rom.length, md5: md5(rom),
+      fileName: meta.fileName, prgName: meta.prgName, diskName: meta.diskName, diskId: meta.diskId,
+      controls: meta.controls, segments, template: toBase64(template),
+    };
+    const rebuilt = buildPrg({ templateBytes: template, segments }, rom);
+    const ok = rebuilt.length === prg.length && rebuilt.every((b, i) => b === prg[i]);
+    const used = new Uint8Array(rom.length);
+    for (const [r, , n] of segments) used.fill(1, r, r + n);
+    return { profile, ok, blanked: segments.reduce((a, s) => a + s[2], 0), romUsed: used.reduce((a, b) => a + b, 0) };
+  }
+
+  // The text of a profile file (games/<id>.js)
+  // The text of a profile file (games/<id>.json): plain data, never code. The
+  // "about" field says what it is; every copy of the ROM's bytes is blanked.
+  function profileSource(profile) {
+    const about = `${profile.title} (${profile.system}) for the C64: builder profile. Contains no original game code: ` +
+      `every copy of the ROM's bytes is blanked, and the user's ROM supplies them.`;
+    return JSON.stringify({ about, ...profile }, null, 1) + '\n';
+  }
+
+  // Load the site's own profiles: games/index.json lists the files. Each is
+  // checked like a dropped one. -> number loaded (throws if the list can't be read)
+  async function loadHosted(base = 'games/') {
+    const list = await (await fetch(base + 'index.json')).json();
+    let n = 0;
+    for (const file of list.games || []) {
+      try {
+        const { profile, error } = parseProfile(await (await fetch(base + file)).text());
+        if (error) { console.warn(file + ': ' + error); continue; }
+        addGame(profile); n++;
+      } catch (e) { console.warn(file + ': ' + e.message); }
+    }
+    return n;
+  }
+
+  // The BASIC lines at the start of a .prg: [{num, text}] (REM and SYS spelled out)
+  function parseBasic(prg) {
+    const load = prg[0] | prg[1] << 8, lines = [];
+    let p = 2;
+    while (p + 4 < prg.length && lines.length < 100) {
+      const next = prg[p] | prg[p + 1] << 8;
+      if (!next) break;
+      const num = prg[p + 2] | prg[p + 3] << 8;
+      let q = p + 4, text = '';
+      while (q < prg.length && prg[q]) {
+        const c = prg[q++];
+        text += c === 0x8f ? 'REM' : c === 0x9e ? 'SYS' : c === 0x99 ? 'PRINT' : c >= 32 && c < 127 ? String.fromCharCode(c) : '';
+      }
+      lines.push({ num, text });
+      const np = next - load + 2;
+      if (np <= p) break;
+      p = np;
+    }
+    return lines;
+  }
+
+  // ---------------------------------------------------------------- profiles from files
+  // A profile is a JSON file: it is parsed as data, never run, and every field
+  // is checked. -> {profile} or {error}
+  function parseProfile(text) {
+    if (!/^\s*\{/.test(text)) return { error: "this file isn't a game profile" };
+    let p;
+    try { p = JSON.parse(text); } catch (e) { return { error: 'the profile is damaged (' + e.message + ')' }; }
+    const error = checkProfile(p);
+    return error ? { error } : { profile: p };
+  }
+
+  function checkProfile(p) {
+    const str = (v, max, re) => typeof v === 'string' && v.length > 0 && v.length <= max && (!re || re.test(v));
+    const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return 'not a profile';
+    if (!str(p.id, 40, /^[a-z0-9-]+$/)) return 'bad id';
+    for (const k of ['title', 'system', 'original', 'port', 'version', 'romName']) if (!str(p[k], 200)) return 'missing or bad ' + k;
+    if (!str(p.fileName, 40, /^[A-Za-z0-9._-]+$/)) return 'bad fileName';
+    for (const k of ['prgName', 'diskName']) if (!str(p[k], 16, /^[\x20-\x5f\x61-\x7a]+$/)) return 'bad ' + k;
+    if (!str(p.diskId, 2, /^[\x20-\x5f\x61-\x7a]+$/)) return 'bad diskId';
+    if (!str(p.md5, 32, /^[0-9a-f]{32}$/)) return 'bad md5';
+    if (!int(p.romSize, 1, 65536)) return 'bad romSize';
+    if (p.controls !== undefined && !(Array.isArray(p.controls) && p.controls.length <= 50 &&
+      p.controls.every(c => Array.isArray(c) && c.length === 2 && c.every(s => typeof s === 'string' && s.length <= 200)))) return 'bad controls';
+    if (typeof p.template !== 'string' || p.template.length > 120000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(p.template)) return 'bad template';
+    let t;
+    try { t = atob(p.template); } catch { return 'bad template'; }
+    if (t.length < 3 || t.length > 65538) return 'bad template size';
+    if (!Array.isArray(p.segments) || p.segments.length > 20000) return 'bad segments';
+    for (const s of p.segments) {
+      if (!Array.isArray(s) || s.length < 3 || !int(s[0], 0, p.romSize - 1) || !int(s[2], 1, p.romSize) || s[0] + s[2] > p.romSize ||
+        !int(s[1], 2, t.length - 1) || s[1] + s[2] > t.length) return 'bad segments';
+    }
+    return null;
+  }
+
+  return { games, md5, unzip, addGame, loadHosted, identify, buildPrg, buildD64, toBase64, makeProfile, profileSource, parseBasic, parseProfile, checkProfile };
+})();
+
+if (typeof module !== 'undefined') module.exports = Builder;
+
+</script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  // Load this site's profiles (games/index.json lists them). Profiles are plain
-  // data: they are read and checked, never run.
-  const done = () => {
-    const games = Builder.games.slice().sort((a, b) => a.title.localeCompare(b.title));
-    $('gameList').innerHTML = games.length ? games.map(g =>
-      `<details><summary>${esc(g.title)}${g.dropped ? ' (from your file)' : ''}</summary><div>` +
-      (g.dropped ? `Profile from <code class="long">${esc(g.dropped)}</code>, not one of this site's games.<br>` : '') +
+  // ---------------------------------------------------------------- tabs
+  const tabs = [['tabBuild', 'paneBuild'], ['tabMake', 'paneMake']];
+  const show = which => tabs.forEach(([t, p]) => {
+    const on = t === which;
+    $(t).setAttribute('aria-selected', String(on));
+    $(p).hidden = !on;
+  });
+  tabs.forEach(([t]) => $(t).addEventListener('click', () => { show(t); history.replaceState(null, '', t === 'tabMake' ? '#make' : '#'); }));
+  if (location.hash === '#make') show('tabMake');
+
+  // A drop zone that takes several files; dropping anywhere on the page goes to the open tab
+  function dropZone(zone, input, handler) {
+    zone.addEventListener('click', () => input.click());
+    zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+    input.addEventListener('change', () => { if (input.files.length) handler([...input.files]); input.value = ''; });
+    ['dragenter', 'dragover'].forEach(t => zone.addEventListener(t, e => { e.preventDefault(); zone.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(t => zone.addEventListener(t, () => zone.classList.remove('over')));
+  }
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    const files = [...e.dataTransfer.files];
+    if (files.length) ($('paneBuild').hidden ? makeFiles : buildFiles)(files);
+  });
+
+  // ================================================================ build a game
+  // On the website, games/index.json lists the site's own profiles: then a ROM
+  // alone is enough for those games. Opened from disk on its own there is no
+  // list (or the browser won't let the page read it): then it works standalone.
+  let lastRom = null, lastProfile = null, siteMode = false;
+  function listGames() {
+    const games = Builder.games.filter(g => !g.dropped).sort((a, b) => a.title.localeCompare(b.title));
+    $('gameList').innerHTML = games.map(g =>
+      `<details><summary>${esc(g.title)}</summary><div>` +
       `${esc(g.system)} original by ${esc(g.original)}.<br>C64 port by ${esc(g.port)}, version ${esc(g.version)}.<br>` +
       `Needs: <code class="long">${esc(g.romName)}</code> (${g.romSize} bytes)<br>MD5 <code class="long">${esc(g.md5)}</code>` +
       `<table>${(g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` +
-      `</div></details>`).join('')
-      : 'No games found.';
+      `</div></details>`).join('');
     $('showGames').textContent = `Supported games (${games.length})`;
-  };
+  }
   $('showGames').addEventListener('click', () => {
     const open = $('gamesPanel').hidden;
     $('gamesPanel').hidden = !open;
     $('showGames').setAttribute('aria-expanded', String(open));
   });
-  Builder.loadHosted().then(done, () => {
-    done();
-    $('gameList').textContent = location.protocol === 'file:'
-      ? "Opened straight from disk, the page can't read its list of games (browsers don't allow it). " +
-        'Use it from the website, or drop a ROM together with its profile (.json).'
-      : "The list of games couldn't be loaded. You can still drop a ROM together with its profile (.json).";
+  Builder.loadHosted().then(n => {
+    if (!n) throw new Error('no games');
+    siteMode = true;
+    listGames();
+    $('showGames').hidden = false;
+    $('bDropTitle').textContent = 'Drop a 2600 ROM here';
+    $('bDropHint').textContent = 'The .a26 file, or the .zip it came in. Or click to choose a file. ' +
+      "Game not listed? Drop its profile (.json) too.";
+    $('modeNote').textContent = "This page lists the site's games.";
+  }).catch(() => {
+    $('modeNote').textContent = 'Standalone: no game list here, so drop each ROM together with its profile.';
   });
-
-  const status = (msg, cls) => { $('status').textContent = msg; $('status').className = cls || ''; };
+  const bStatus = (msg, cls) => { $('bStatus').textContent = msg; $('bStatus').className = 'status ' + (cls || ''); };
   const link = (id, bytes, name) => {
     const a = $(id);
     if (a.href) URL.revokeObjectURL(a.href);
     a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
     a.download = name;
   };
+  const showLoaded = () => {
+    const dropped = Builder.games.filter(g => g.dropped);
+    $('loaded').textContent = dropped.length
+      ? 'Profiles from your files: ' + dropped.map(g => g.title).join(', ') + '.' : '';
+  };
 
-  // A profile someone drops is read and checked the same way as the site's own
-  // (Builder.parseProfile), so a file found elsewhere can't run code on this page.
-  let lastRom = null, lastProfile = null;
-  const looksLikeProfile = (name, bytes) => /\.json$/i.test(name) ||
-    (bytes.length && bytes[0] === 0x7b && bytes.length < 200000);   // starts with {
+  function addProfile(profile, source) {
+    const same = Builder.games.find(g => g.md5 === profile.md5);
+    if (same) return same;
+    profile.dropped = source;
+    Builder.addGame(profile);
+    showLoaded();
+    return profile;
+  }
 
-  async function handleFiles(files) {
-    $('result').classList.remove('show');
+  async function buildFiles(files) {
+    $('bResult').classList.remove('show');
     try {
       let rom = null;
       for (const file of files) {
-        if (/\.js$/i.test(file.name)) { status(`${file.name}: game profiles are .json files.`, 'bad'); return; }
+        if (/\.js$/i.test(file.name)) { bStatus(`${file.name}: game profiles are .json files.`, 'bad'); return; }
         const bytes = new Uint8Array(await file.arrayBuffer());
-        if (!looksLikeProfile(file.name, bytes)) { rom = { bytes, name: file.name }; continue; }
+        const isProfile = /\.json$/i.test(file.name) || (bytes[0] === 0x7b && bytes.length < 200000);
+        if (!isProfile) { rom = { bytes, name: file.name }; continue; }
         const { profile, error } = Builder.parseProfile(new TextDecoder().decode(bytes));
-        if (error) { status(`${file.name} isn't a usable game profile: ${error}.`, 'bad'); return; }
-        const same = Builder.games.find(g => g.md5 === profile.md5);
-        if (same) lastProfile = same;              // already here (one of the site's games, or dropped before)
-        else { profile.dropped = file.name; Builder.addGame(profile); lastProfile = profile; done(); }
+        if (error) { bStatus(`${file.name} isn't a usable game profile: ${error}.`, 'bad'); return; }
+        lastProfile = addProfile(profile, file.name);
       }
       if (rom) lastRom = rom;
-      if (lastRom) return build(lastRom);
-      if (lastProfile) status(`Profile loaded: ${lastProfile.title}. Now drop its ROM: ${lastProfile.romName}.`, 'ok');
+      if (lastRom && Builder.games.length) return build(lastRom);
+      if (lastRom) bStatus(`Got the ROM (${lastRom.name}). Now drop the game's profile (.json).`, 'ok');
+      else if (lastProfile) bStatus(`Profile loaded: ${lastProfile.title}. Now drop its ROM: ${lastProfile.romName}.`, 'ok');
     } catch (e) {
-      status('Something went wrong: ' + e.message, 'bad');
+      bStatus('Something went wrong: ' + e.message, 'bad');
     }
   }
 
   async function build(rom) {
-    status('Reading ' + rom.name + '...');
     const found = await Builder.identify(rom.bytes);
     if (!found) {
-      if (lastProfile && lastProfile.dropped)
-        status(`This ROM doesn't match the profile you dropped (${lastProfile.title}). It needs the exact ` +
-          `${lastProfile.romName}, MD5 ${lastProfile.md5}.`, 'bad');
-      else
-        status("This ROM isn't supported. Each game needs the exact cartridge dump it was built from " +
-          '(other versions, such as PAL ones, differ), or a .zip containing it. ' +
-          "See \"Supported games\" for the file names and MD5s. If the game isn't listed, drop its profile (.json) too.", 'bad');
+      bStatus(lastProfile && lastProfile.dropped
+        ? `This ROM doesn't match the profile you dropped (${lastProfile.title}). It needs the exact ${lastProfile.romName}, MD5 ${lastProfile.md5}.`
+        : siteMode
+          ? "This ROM isn't supported. Each game needs the exact cartridge dump it was built from (other versions, " +
+            'such as PAL ones, differ), or a .zip containing it. See "Supported games" for the file names and MD5s. ' +
+            "If the game isn't listed, drop its profile (.json) too."
+          : "This ROM doesn't match any profile you've dropped. Drop the game's profile (.json) too.", 'bad');
       return;
     }
     const g = found.game;
     const prg = Builder.buildPrg(g, found.rom);
-    const d64 = Builder.buildD64(prg, g.prgName, g.diskName, g.diskId);
     link('dlPrg', prg, g.fileName + '.prg');
-    link('dlD64', d64, g.fileName + '.d64');
+    link('dlD64', Builder.buildD64(prg, g.prgName, g.diskName, g.diskId), g.fileName + '.d64');
     $('rTitle').textContent = g.title + ' for the Commodore 64';
     $('rCredits').textContent = `${g.system} original by ${g.original}. C64 port by ${g.port}, version ${g.version}.` +
-      (g.dropped ? ` (Built with the profile from your file ${g.dropped}, not one of this site's games.)` : '');
+      (g.dropped && siteMode ? ` (Built with the profile from your file ${g.dropped}, not one of this site's games.)` : '');
     $('rControls').innerHTML = (g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
-    status('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
-    $('result').classList.add('show');
+    bStatus('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
+    $('bResult').classList.add('show');
+  }
+  dropZone($('bDrop'), $('bFile'), buildFiles);
+
+  // ================================================================ make a profile
+  let prg = null, prgName = '', rom = null, romFile = '', made = null;
+  const notes = [];
+  async function makeFiles(files) {
+    for (const file of files) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const name = file.name;
+      if (/\.prg$/i.test(name) || (bytes.length > 2 && bytes[0] === 0x01 && bytes[1] === 0x08 && !/\.(a26|bin|rom|zip)$/i.test(name))) {
+        prg = bytes; prgName = name; prefill();
+      } else if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+        const entry = (await Builder.unzip(bytes)).find(e => /\.(a26|bin|rom)$/i.test(e.name));
+        if (!entry) { notes.push(`${name}: no .a26 ROM inside this .zip`); continue; }
+        rom = entry.data; romFile = entry.name;
+      } else {
+        rom = bytes; romFile = name;
+      }
+      if (rom && (!$('fRomName').value || $('fRomName').dataset.auto)) { $('fRomName').value = romFile; $('fRomName').dataset.auto = '1'; }
+    }
+    showFiles();
+  }
+  $('fRomName').addEventListener('input', () => delete $('fRomName').dataset.auto);
+
+  function showFiles() {
+    const sizeOk = rom && [2048, 4096, 8192, 12288, 16384, 32768, 65536].includes(rom.length);
+    $('mFiles').innerHTML =
+      `<div class="${prg ? 'ok' : ''}">C64 program: ${prg ? esc(prgName) + ` (${prg.length} bytes)` : 'not yet'}</div>` +
+      `<div class="${rom ? (sizeOk ? 'ok' : 'bad') : ''}">2600 ROM: ${rom ? esc(romFile) + ` (${rom.length} bytes${sizeOk ? '' : ', an unusual size for a 2600 ROM'})` : 'not yet'}</div>` +
+      notes.map(n => `<div class="bad">${esc(n)}</div>`).join('');
+    $('make').disabled = !(prg && rom);
+    $('needs').textContent = prg && rom ? '' : 'Drop your .prg and ROM first.';
   }
 
-  const drop = $('drop'), input = $('file');
-  drop.addEventListener('click', () => input.click());
-  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-  input.addEventListener('change', () => { if (input.files.length) handleFiles([...input.files]); input.value = ''; });
-  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
-  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
-  window.addEventListener('dragover', e => e.preventDefault());
-  window.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files.length) handleFiles([...e.dataTransfer.files]); });
-  window.Site = { handleFiles, handle: f => handleFiles([f]) };   // (lets tests feed in files)
+  // Pre-fill from the BASIC lines (ports often put their credits and controls there)
+  function prefill() {
+    const lines = Builder.parseBasic(prg);
+    $('basic').textContent = lines.map(l => `${l.num} ${l.text}`).join('\n');
+    $('basicBox').hidden = !lines.length;
+    const rems = lines.map(l => l.text).filter(t => /^REM/.test(t)).map(t => t.replace(/^REM\s*/, '').trim()).filter(Boolean);
+    if (!rems.length) return;
+    const cap = s => s.toLowerCase().replace(/\b([a-z])/g, c => c.toUpperCase()).replace(/ And /g, ' and ');
+    const set = (id, v) => { if (v && !$(id).value) $(id).value = v; };
+    set('fTitle', cap(rems[0]));
+    const controls = [];
+    for (let i = 1; i < rems.length; i++) {
+      const t = rems[i];
+      let m;
+      if (/^FROM THE ATARI/i.test(t)) continue;
+      if ((m = t.match(/^(?:PROGRAMMED|DESIGNED|WRITTEN)(?: AT \S+)? BY\s*(.*)$/i))) {
+        let who = m[1];
+        while (i + 1 < rems.length && (!who || /,$/.test(who))) who = (who ? who + ' ' : '') + rems[++i];
+        set('fOriginal', cap(who)); continue;
+      }
+      if ((m = t.match(/^GRAPHICS BY\s+(.*)$/i))) {
+        if ($('fOriginal').value && !/graphics/i.test($('fOriginal').value)) $('fOriginal').value += ', graphics by ' + cap(m[1]);
+        continue;
+      }
+      if ((m = t.match(/^PORTED BY\s+(.*)$/i))) { set('fPort', cap(m[1])); continue; }
+      if ((m = t.match(/^(?:VERSION|BETA|V)\s*([\d.]+.*)$/i))) { set('fVersion', /^BETA/i.test(t) ? m[1] + ' beta' : m[1]); continue; }
+      controls.push(t);
+    }
+    if (!$('fControls').value) $('fControls').value = controls.join('\n');
+  }
+
+  const slug = s => s.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'game';
+  $('make').addEventListener('click', () => {
+    const title = $('fTitle').value.trim();
+    if (!title) { alert('Please give the game a title.'); $('fTitle').focus(); return; }
+    const id = slug(title), short = title.toUpperCase().slice(0, 16);
+    const meta = {
+      id, title, system: 'Atari 2600', original: $('fOriginal').value.trim() || 'unknown',
+      port: $('fPort').value.trim() || 'unknown', version: $('fVersion').value.trim() || '1.0',
+      romName: $('fRomName').value.trim() || romFile, fileName: id + '-c64', prgName: short, diskName: short,
+      diskId: (title.replace(/[^a-z0-9]/gi, '').slice(0, 2) || 'GM').toUpperCase(),
+      controls: $('fControls').value.split('\n').map(l => l.trim()).filter(Boolean)
+        .map(l => { const m = l.match(/^(.*?)\s+[-–=:]\s+(.*)$/); return m ? [m[1], m[2]] : [l, '']; }),
+    };
+    const { profile, ok, blanked, romUsed } = Builder.makeProfile(prg, rom, meta);
+    const pct = Math.round(100 * romUsed / rom.length);
+    // With the wrong ROM the port's own copy of the original wouldn't be blanked,
+    // so a profile is only offered when the ROM clearly matches.
+    const matches = ok && pct >= 25;
+    let html = '';
+    if (!ok) html += `<p class="bad">Something went wrong: the profile doesn't rebuild your .prg exactly.</p>`;
+    if (pct < 25) html += `<p class="bad">Only ${pct}% of this ROM appears in your .prg, so it doesn't look like the ROM ` +
+      `your port was made from (ports normally use well over half of it). No profile was made: it would still contain ` +
+      `the original game. Check you have the exact ROM, then try again.</p>`;
+    if (matches) html += `<p class="ok">Profile made and checked: it rebuilds your .prg byte for byte.</p>`;
+    html += `<table class="small">` +
+      `<tr><td>Game</td><td>${esc(title)} (C64 port by ${esc(meta.port)}, version ${esc(meta.version)})</td></tr>` +
+      `<tr><td>ROM</td><td><code class="long">${esc(meta.romName)}</code>, ${rom.length} bytes, MD5 <code class="long">${profile.md5}</code></td></tr>` +
+      `<tr><td>Original game used</td><td>${romUsed} of ${rom.length} ROM bytes (${pct}%), in ${profile.segments.length} pieces, all blanked (${blanked} bytes)</td></tr>` +
+      `<tr><td>File</td><td><code>${esc(id)}.json</code></td></tr></table>`;
+    $('summary').innerHTML = html;
+    const a = $('download');
+    if (a.href) { URL.revokeObjectURL(a.href); a.removeAttribute('href'); }
+    made = matches ? profile : null;
+    if (matches) {
+      a.href = URL.createObjectURL(new Blob([Builder.profileSource(profile)], { type: 'application/json' }));
+      a.download = id + '.json';
+    }
+    $('download').hidden = $('useIt').hidden = !matches;
+    $('mResult').classList.add('show');
+    $('mResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // Try the new profile straight away: load it and the ROM into the Build tab
+  $('useIt').addEventListener('click', async () => {
+    if (!made) return;
+    const { profile } = Builder.parseProfile(Builder.profileSource(made));   // exactly what the file holds
+    lastProfile = addProfile(profile, made.id + '.json');
+    lastRom = { bytes: rom, name: romFile };
+    show('tabBuild');
+    history.replaceState(null, '', '#');
+    await build(lastRom);
+  });
+
+  dropZone($('mDrop'), $('mFile'), makeFiles);
+  showFiles();
+  window.Standalone = { buildFiles, makeFiles };   // (lets tests feed in files)
 })();
 </script>
 </body>
