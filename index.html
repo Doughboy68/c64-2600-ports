@@ -151,8 +151,9 @@
     try {
       const found = await Builder.identify(new Uint8Array(await file.arrayBuffer()));
       if (!found) {
-        status('Not a ROM this page knows. It needs one of the exact cartridge dumps listed below ' +
-          '(checked by MD5), or a .zip containing one.', 'bad');
+        status("This ROM isn't supported. Each game needs the exact cartridge dump it was built from " +
+          '(other versions, such as PAL ones, differ), or a .zip containing it. ' +
+          'See "Supported games" for the file names and MD5s.', 'bad');
         return;
       }
       const g = found.game;
