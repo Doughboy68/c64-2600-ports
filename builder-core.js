@@ -238,24 +238,12 @@ const Builder = (() => {
   }
 
   // ---------------------------------------------------------------- profiles from files
-  // A profile someone dropped on the page is read as data, never run: only the
-  // object inside Builder.addGame(...) (or a bare JSON object) is parsed, then
-  // every field is checked. -> {profile} or {error}
+  // A profile is a JSON file: it is parsed as data, never run, and every field
+  // is checked. -> {profile} or {error}
   function parseProfile(text) {
-    let start = text.indexOf('Builder.addGame(');
-    start = start >= 0 ? text.indexOf('{', start) : text.search(/\S/);
-    if (start < 0 || text[start] !== '{') return { error: "this file doesn't contain a game profile" };
-    let depth = 0, inStr = false, end = -1;              // find the object's closing brace
-    for (let i = start; i < text.length && end < 0; i++) {
-      const c = text[i];
-      if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; }
-      else if (c === '"') inStr = true;
-      else if (c === '{') depth++;
-      else if (c === '}' && --depth === 0) end = i;
-    }
-    if (end < 0) return { error: 'the profile is incomplete' };
+    if (!/^\s*\{/.test(text)) return { error: "this file isn't a game profile" };
     let p;
-    try { p = JSON.parse(text.slice(start, end + 1)); } catch (e) { return { error: 'the profile is damaged (' + e.message + ')' }; }
+    try { p = JSON.parse(text); } catch (e) { return { error: 'the profile is damaged (' + e.message + ')' }; }
     const error = checkProfile(p);
     return error ? { error } : { profile: p };
   }

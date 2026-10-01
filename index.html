@@ -79,7 +79,7 @@
       <span>The .a26 file, or the .zip it came in. Or click to choose a file.</span>
       <span class="small" style="display: block; margin-top: 8px">Game not listed? Drop its profile (.json) too.</span>
     </div>
-    <input id="file" type="file" multiple accept=".a26,.bin,.rom,.zip,.js,.json" hidden>
+    <input id="file" type="file" multiple accept=".a26,.bin,.rom,.zip,.json" hidden>
     <p id="status" role="status"></p>
     <div id="result">
       <div class="title" id="rTitle"></div>
@@ -152,14 +152,15 @@
   // A profile someone drops is read and checked the same way as the site's own
   // (Builder.parseProfile), so a file found elsewhere can't run code on this page.
   let lastRom = null, lastProfile = null;
-  const looksLikeProfile = (name, bytes) => /.(js|json)$/i.test(name) ||
-    (bytes.length && (bytes[0] === 0x2f || bytes[0] === 0x7b) && bytes.length < 200000);
+  const looksLikeProfile = (name, bytes) => /\.json$/i.test(name) ||
+    (bytes.length && bytes[0] === 0x7b && bytes.length < 200000);   // starts with {
 
   async function handleFiles(files) {
     $('result').classList.remove('show');
     try {
       let rom = null;
       for (const file of files) {
+        if (/\.js$/i.test(file.name)) { status(`${file.name}: game profiles are .json files.`, 'bad'); return; }
         const bytes = new Uint8Array(await file.arrayBuffer());
         if (!looksLikeProfile(file.name, bytes)) { rom = { bytes, name: file.name }; continue; }
         const { profile, error } = Builder.parseProfile(new TextDecoder().decode(bytes));
