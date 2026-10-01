@@ -63,7 +63,8 @@
   details > div { margin: 8px 0 0 18px; }
   details table { margin-top: 8px; }
   .title { color: var(--ink-strong); font-weight: bold; }
-  code { color: var(--ink-strong); overflow-wrap: anywhere; }   /* only long MD5s get broken */
+  code { color: var(--ink-strong); white-space: nowrap; }         /* short words like LIST never split */
+  code.long { white-space: normal; overflow-wrap: anywhere; word-break: break-all; }   /* MD5s, file names */
   .small { font-size: 14px; }
 </style>
 </head>
@@ -118,7 +119,7 @@
     $('gameList').innerHTML = games.length ? games.map(g =>
       `<details><summary>${esc(g.title)}</summary><div>` +
       `${esc(g.system)} original by ${esc(g.original)}.<br>C64 port by ${esc(g.port)}, version ${esc(g.version)}.<br>` +
-      `Needs: <code>${esc(g.romName)}</code> (${g.romSize} bytes)<br>MD5 <code>${esc(g.md5)}</code>` +
+      `Needs: <code class="long">${esc(g.romName)}</code> (${g.romSize} bytes)<br>MD5 <code class="long">${esc(g.md5)}</code>` +
       `<table>${(g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` +
       `</div></details>`).join('')
       : 'No games found.';
