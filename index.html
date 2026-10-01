@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2600 to C64 Builder</title>
+<style>
+  :root {
+    --bg: #40318d;           /* C64 blue */
+    --panel: #352879;
+    --ink: #a59bff;          /* C64 light blue */
+    --ink-strong: #ffffff;
+    --accent: #eff347;
+    --ok: #91ff84;
+    --bad: #ff8a8a;
+    --line: #6c5eb5;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #e9e6fb; --panel: #ffffff; --ink: #3a2f86; --ink-strong: #1b1446;
+      --accent: #8a6d00; --ok: #1d7a12; --bad: #b3261e; --line: #c9c2f2;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { color: var(--ink-strong); font-size: 26px; letter-spacing: 2px; margin: 0 0 4px; }
+  h2 { color: var(--ink-strong); font-size: 18px; margin: 0 0 12px; }
+  .sub { margin: 0 0 24px; }
+  .panel { background: var(--panel); border: 2px solid var(--line); border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+  #drop {
+    border: 2px dashed var(--ink); border-radius: 6px; padding: 32px 16px; text-align: center;
+    cursor: pointer; transition: background .15s;
+  }
+  #drop.over { background: rgba(255,255,255,.08); }
+  #drop strong { color: var(--ink-strong); display: block; font-size: 18px; margin-bottom: 6px; }
+  #status { min-height: 1.5em; margin: 16px 0 0; }
+  #status.ok { color: var(--ok); }
+  #status.bad { color: var(--bad); }
+  #result { display: none; margin-top: 16px; }
+  #result.show { display: block; }
+  .buttons { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+  a.btn {
+    display: inline-block; background: var(--accent); color: #1b1446; font-weight: bold;
+    text-decoration: none; padding: 10px 18px; border-radius: 4px;
+  }
+  a.btn:focus-visible, #drop:focus-visible { outline: 3px solid var(--ink-strong); outline-offset: 3px; }
+  table { border-collapse: collapse; width: 100%; }
+  td { padding: 4px 8px 4px 0; vertical-align: top; }
+  td:first-child { color: var(--ink-strong); white-space: nowrap; width: 1%; }
+  ul.games { list-style: none; padding: 0; margin: 0; }
+  ul.games li { padding: 8px 0; border-top: 1px solid var(--line); }
+  ul.games li:first-child { border-top: 0; }
+  .title { color: var(--ink-strong); font-weight: bold; }
+  code { color: var(--ink-strong); word-break: break-all; }
+  .small { font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ATARI 2600 &rarr; C64</h1>
+  <p class="sub">Atari 2600 games ported to the Commodore 64. Build them from your own cartridge ROMs.</p>
+
+  <div class="panel">
+    <div id="drop" tabindex="0" role="button" aria-label="Choose a 2600 ROM">
+      <strong>Drop a 2600 ROM here</strong>
+      <span>The .a26 file, or the .zip it came in. Or click to choose a file.</span>
+    </div>
+    <input id="file" type="file" accept=".a26,.bin,.rom,.zip" hidden>
+    <p id="status" role="status"></p>
+    <div id="result">
+      <div class="title" id="rTitle"></div>
+      <div class="small" id="rCredits"></div>
+      <div class="buttons">
+        <a class="btn" id="dlPrg">Download .prg</a>
+        <a class="btn" id="dlD64">Download .d64 disk</a>
+      </div>
+      <p class="small">Open either in an emulator such as VICE, or on a real C64 load from disk
+        and <code>RUN</code> (<code>LIST</code> first shows the credits).</p>
+      <table class="small" id="rControls"></table>
+    </div>
+    <p class="small">Everything happens in this page: your ROM is never uploaded anywhere.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Games</h2>
+    <ul class="games small" id="gameList"><li>Loading...</li></ul>
+  </div>
+
+  <p class="small">This page contains none of the original games. Each port stores only its C64
+    code, with the original's bytes left out; your ROM supplies them.</p>
+</main>
+
+<script src="builder-core.js"></script>
+<script src="games/games.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // Load every profile listed in games/games.js (plain script tags: works from disk too)
+  let pending = Builder.gameFiles.length;
+  const done = () => {
+    $('gameList').innerHTML = Builder.games.length ? Builder.games.map(g =>
+      `<li><span class="title">${esc(g.title)}</span> (${esc(g.system)}, ${esc(g.original)})<br>` +
+      `C64 port by ${esc(g.port)}, version ${esc(g.version)}<br>` +
+      `ROM: <code>${esc(g.romName)}</code>, MD5 <code>${esc(g.md5)}</code></li>`).join('')
+      : '<li>No games found.</li>';
+  };
+  if (!pending) done();
+  for (const f of Builder.gameFiles) {
+    const s = document.createElement('script');
+    s.src = 'games/' + f;
+    s.onload = s.onerror = () => { if (--pending === 0) done(); };
+    document.head.appendChild(s);
+  }
+
+  const status = (msg, cls) => { $('status').textContent = msg; $('status').className = cls || ''; };
+  const link = (id, bytes, name) => {
+    const a = $(id);
+    if (a.href) URL.revokeObjectURL(a.href);
+    a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+    a.download = name;
+  };
+
+  async function handle(file) {
+    $('result').classList.remove('show');
+    status('Reading ' + file.name + '...');
+    try {
+      const found = await Builder.identify(new Uint8Array(await file.arrayBuffer()));
+      if (!found) {
+        status('Not a ROM this page knows. It needs one of the exact cartridge dumps listed below ' +
+          '(checked by MD5), or a .zip containing one.', 'bad');
+        return;
+      }
+      const g = found.game;
+      const prg = Builder.buildPrg(g, found.rom);
+      const d64 = Builder.buildD64(prg, g.prgName, g.diskName, g.diskId);
+      link('dlPrg', prg, g.fileName + '.prg');
+      link('dlD64', d64, g.fileName + '.d64');
+      $('rTitle').textContent = g.title + ' for the Commodore 64';
+      $('rCredits').textContent = `${g.system} original by ${g.original}. C64 port by ${g.port}, version ${g.version}.`;
+      $('rControls').innerHTML = (g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+      status('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
+      $('result').classList.add('show');
+    } catch (e) {
+      status('Something went wrong: ' + e.message, 'bad');
+    }
+  }
+
+  const drop = $('drop'), input = $('file');
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  input.addEventListener('change', () => { if (input.files[0]) handle(input.files[0]); input.value = ''; });
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
+  window.Site = { handle };   // (lets tests feed in a file)
+})();
+</script>
+</body>
+</html>
