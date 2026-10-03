@@ -99,9 +99,9 @@
       <div class="drop" id="bDrop" tabindex="0" role="button" aria-label="Choose a ROM and its profile">
         <strong id="bDropTitle">Drop a 2600 ROM and the game's profile here</strong>
         <span id="bDropHint">The ROM as .a26 (or the .zip it came in), and the profile as .json. Together, or one after
-          the other. Or click to choose files.</span>
+          the other; its README (.md) too, to read it here. Or click to choose files.</span>
       </div>
-      <input id="bFile" type="file" multiple accept=".a26,.bin,.rom,.zip,.json" hidden>
+      <input id="bFile" type="file" multiple accept=".a26,.bin,.rom,.zip,.json,.md,.markdown,.txt" hidden>
       <p class="status" id="bStatus" role="status"></p>
       <div class="result" id="bResult">
         <div class="title" id="rTitle"></div>
@@ -522,7 +522,7 @@ if (typeof module !== 'undefined') module.exports = Builder;
   }
   $('gameList').addEventListener('click', e => {
     const b = e.target.closest('[data-readme]');
-    if (b) showReadme(listed[+b.dataset.readme]);
+    if (b) showReadme(readmeFor(listed[+b.dataset.readme]), listed[+b.dataset.readme].title);
   });
 
   // ---------------------------------------------------------------- read-mes
@@ -580,17 +580,31 @@ if (typeof module !== 'undefined') module.exports = Builder;
     }
     return out.join('\n');
   }
-  async function showReadme(g) {
+  // A read-me is the site's (g.readme, an address) or one dropped with the files ({name, text}),
+  // which goes with the game its first heading names, else with the profile dropped with it.
+  const droppedReadmes = [];
+  function readmeFor(g) {
+    if (g.readme) return { url: g.readme, name: g.readme.split('/').pop() };
+    const t = g.title.toLowerCase();
+    return droppedReadmes.find(r => r.heading.toLowerCase().startsWith(t)) || droppedReadmes.find(r => r.md5 === g.md5);
+  }
+  async function showReadme(src, title) {
     try {
-      const r = await fetch(g.readme, { cache: 'no-cache' });
-      if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
-      $('readmeBody').innerHTML = markdown(await r.text());
-      $('readmeDl').href = g.readme;
-      $('readmeDl').download = g.readme.split('/').pop();
+      let text = src.text;
+      if (src.url) {
+        const r = await fetch(src.url, { cache: 'no-cache' });
+        if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+        text = await r.text();
+      }
+      $('readmeBody').innerHTML = markdown(text);
+      const a = $('readmeDl');
+      if (a.href.startsWith('blob:')) URL.revokeObjectURL(a.href);
+      a.href = src.url || URL.createObjectURL(new Blob([text], { type: 'text/markdown' }));
+      a.download = src.name;
       $('readmePanel').hidden = false;
       $('readmePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
-      bStatus(`Couldn't load the read-me for ${g.title}: ${e.message}`, 'bad');
+      bStatus(`Couldn't load the read-me for ${title}: ${e.message}`, 'bad');
     }
   }
   $('readmeClose').addEventListener('click', () => { $('readmePanel').hidden = true; });
@@ -610,7 +624,8 @@ if (typeof module !== 'undefined') module.exports = Builder;
     $('modeNote').textContent = "This page lists the site's games.";
     $('selfDownload').hidden = false;      // (only on the website: an offline copy has nothing to link to)
   }).catch(() => {
-    $('modeNote').textContent = 'Standalone: no game list here, so drop each ROM together with its profile.';
+    $('modeNote').textContent = 'Standalone: no game list here, so drop each ROM together with its profile ' +
+      '(and its README, to read it here).';
   });
   const bStatus = (msg, cls) => { $('bStatus').textContent = msg; $('bStatus').className = 'status ' + (cls || ''); };
   const link = (id, bytes, name) => {
@@ -639,15 +654,27 @@ if (typeof module !== 'undefined') module.exports = Builder;
   async function buildFiles(files) {
     $('bResult').classList.remove('show');
     try {
-      let rom = null;
+      let rom = null, readme = null, profileHere = null;
       for (const file of files) {
         if (/\.js$/i.test(file.name)) { bStatus(`${file.name}: game profiles are .json files.`, 'bad'); return; }
         const bytes = new Uint8Array(await file.arrayBuffer());
+        if (/\.(md|markdown|txt)$/i.test(file.name)) {          // a read-me
+          const text = new TextDecoder().decode(bytes), h = /^#+\s+(.+)$/m.exec(text);
+          readme = { name: file.name, text, heading: h ? h[1].trim() : '', md5: null };
+          droppedReadmes.unshift(readme);
+          continue;
+        }
         const isProfile = /\.json$/i.test(file.name) || (bytes[0] === 0x7b && bytes.length < 200000);
         if (!isProfile) { rom = { bytes, name: file.name }; continue; }
         const { profile, error } = Builder.parseProfile(new TextDecoder().decode(bytes));
         if (error) { bStatus(`${file.name} isn't a usable game profile: ${error}.`, 'bad'); return; }
-        lastProfile = addProfile(profile, file.name);
+        lastProfile = profileHere = addProfile(profile, file.name);
+      }
+      if (readme) {
+        const p = profileHere || lastProfile;                   // (used when its heading names no game)
+        if (p) readme.md5 = p.md5;
+        showReadme(readme, readme.name);
+        if (!rom && !profileHere) { bStatus(`README loaded: ${readme.name}, shown below.`, 'ok'); if (!lastRom) return; }
       }
       if (rom) lastRom = rom;
       if (lastRom && Builder.games.length) return build(lastRom);
@@ -679,8 +706,9 @@ if (typeof module !== 'undefined') module.exports = Builder;
       (g.dropped && siteMode ? ` (Built with the profile from your file ${g.dropped}, ` +
         (g.overridesSite ? "instead of this site's own profile for this game.)" : "not one of this site's games.)") : '');
     $('rControls').innerHTML = (g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
-    $('rReadme').hidden = !g.readme;      // (the site's own games; not a dropped profile)
-    $('rReadme').onclick = () => showReadme(g);
+    const readme = readmeFor(g);          // (the site's, or one dropped with the files)
+    $('rReadme').hidden = !readme;
+    $('rReadme').onclick = () => showReadme(readme, g.title);
     bStatus('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
     $('bResult').classList.add('show');
   }
