@@ -1,6 +1,6 @@
 # Combat: Atari 2600 → Commodore 64
 
-Version 1.1. A port of Atari's 1977 *Combat* cartridge (Joe Decuir and Larry Wagner) to the C64, by
+Version 1.2. A port of Atari's 1977 *Combat* cartridge (Joe Decuir and Larry Wagner) to the C64, by
 **TjLaZer** (shared on the Lemon64 forum), with his computer player for one-person games.
 This folder holds his program turned back into source and brought in line with the other
 ports here: the standard keys, a keyboard set for each player, F2 power off/on, fire to
@@ -17,7 +17,7 @@ Type `LIST` before `RUN` to see the title, credits and controls.
 Needs the original 2K cartridge dump (MD5 `0d213ac07d3be0d51d3084769bebac17`, any file name, or its
 `.zip`) in `roms_port\` (or `prg contributed\`), plus the shared tools described in the top-level
 README. Then run `build.cmd` in this folder; it also makes the web builder profile
-(`site/games/combat.json`, no original game code). Published (1.0, then 1.1) with TjLaZer's permission.
+(`site/games/combat.json`, no original game code). Published (1.0, 1.1, 1.2) with TjLaZer's permission.
 
 ## Controls
 
@@ -88,9 +88,11 @@ D moved to V because it's player 1's "right" now.
   characters (screen row 24). `Playfield` now leaves that row empty, so both walls are 8 lines.
   The game is unchanged: tanks and shots always meet row 23's wall first (lockstep: identical apart
   from the screen and the maps made from it).
-* Border flash (1.1): while C / V flash the border, the interrupt used to leave the border closed,
-  so the scores above the picture vanished and the picture's bottom changed. The border is now
-  always opened, and the flash colours the side borders.
+* Border flash (1.2): C / V flash the whole border, as TjLaZer made it: for the flash the border
+  isn't opened, so it all shows the flash colour (the scores above the picture are hidden
+  meanwhile). With row 24 empty (above) that left a strip of background between the bottom wall
+  and the border, so for the flash row 24 is filled with reverse spaces in the flash colour and
+  emptied again after (`FlashRow`). (1.1 had flashed only the side borders.)
 * Sprite fix: the renderer skips redrawing a sprite whose object, place and size haven't changed
   since that buffer last showed it, but a change of shape (a tank turning) reached only the slot
   the object had that frame. If the object was missing for a frame, or came back in another slot,
