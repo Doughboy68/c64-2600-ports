@@ -12,5 +12,15 @@
   "pac-man.json",
   "space-invaders.json",
   "yars-revenge.json"
+ ],
+ "readmes": [
+  "readme_adventure.md",
+  "readme_asteroids.md",
+  "readme_berzerk.md",
+  "readme_combat.md",
+  "readme_demon-attack.md",
+  "readme_et.md",
+  "readme_pac-man.md",
+  "readme_space-invaders.md"
  ]
 }

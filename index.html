@@ -67,7 +67,18 @@
   #gameList details:first-child { border-top: 0; }
   #gameList details > div { margin: 8px 0 0 18px; }
   #gameList table { margin-top: 8px; }
+  #gameList .buttons { margin: 10px 0 0; gap: 8px; }
+  #gameList .btn { font-size: 14px; padding: 6px 12px; }
   .small { font-size: 14px; }
+  .readme h2, .readme h3, .readme h4 { color: var(--ink-strong); margin: 20px 0 8px; }
+  .readme h2 { font-size: 20px; margin-top: 4px; } .readme h3 { font-size: 16px; } .readme h4 { font-size: 15px; }
+  .readme p, .readme ul, .readme table { margin: 0 0 12px; }
+  .readme ul { padding-left: 20px; }
+  .readme th { color: var(--ink-strong); text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
+  .readme td { border-bottom: 1px solid var(--line); }
+  .readme td:first-child { white-space: normal; width: auto; }
+  .readme code { white-space: normal; overflow-wrap: anywhere; }
+  .readme .scroll { overflow-x: auto; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -98,12 +109,20 @@
         <div class="buttons">
           <a class="btn" id="dlPrg">Download .prg</a>
           <a class="btn" id="dlD64">Download .d64 disk</a>
+          <button type="button" class="btn" id="rReadme" hidden>Read me</button>
         </div>
         <p class="small">Open either in an emulator such as VICE, or on a real C64 load from disk
           and <code>RUN</code> (<code>LIST</code> first shows the credits).</p>
         <table class="small" id="rControls"></table>
       </div>
       <p class="small" id="loaded"></p>
+    </div>
+    <div class="panel" id="readmePanel" hidden>
+      <div class="buttons" style="margin-top: 0">
+        <a class="btn" id="readmeDl">Download README</a>
+        <button type="button" class="btn" id="readmeClose">Close</button>
+      </div>
+      <div class="small readme" id="readmeBody"></div>
     </div>
     <button type="button" class="tab" id="showGames" aria-expanded="false" aria-controls="gamesPanel" hidden>Supported games</button>
     <div class="panel" id="gamesPanel" style="margin-top: 16px" hidden>
@@ -115,7 +134,7 @@
       original game blanked out, so they're safe to share. Your ROM, checked by MD5, fills the gaps.</p>
     <p class="small"><span id="modeNote"></span> <span id="selfDownload" hidden><a href="index.html"
       download="c64-2600-builder.html">Download this page</a> to use it offline: it's one file.</span>
-      <span style="white-space: nowrap">Version 2026-10-01.</span></p>
+      <span style="white-space: nowrap">Version 2026-10-03.</span></p>
   </section>
 
   <!-- ================================================================ make -->
@@ -368,14 +387,19 @@ const Builder = (() => {
   }
 
   // Load the site's own profiles: games/index.json lists the files. Each is
-  // checked like a dropped one. -> number loaded (throws if the list can't be read)
+  // checked like a dropped one. Each gets its address as .file, and as .readme the
+  // address of its read-me if the list has one (readme_<id>.md).
+  // -> number loaded (throws if the list can't be read)
   async function loadHosted(base = 'games/') {
     const list = await (await fetch(base + 'index.json')).json();
+    const readmes = new Set(list.readmes || []);
     let n = 0;
     for (const file of list.games || []) {
       try {
         const { profile, error } = parseProfile(await (await fetch(base + file)).text());
         if (error) { console.warn(file + ': ' + error); continue; }
+        profile.file = base + file;
+        if (readmes.has('readme_' + profile.id + '.md')) profile.readme = base + 'readme_' + profile.id + '.md';
         addGame(profile); n++;
       } catch (e) { console.warn(file + ': ' + e.message); }
     }
@@ -480,16 +504,95 @@ if (typeof module !== 'undefined') module.exports = Builder;
   // alone is enough for those games. Opened from disk on its own there is no
   // list (or the browser won't let the page read it): then it works standalone.
   let lastRom = null, lastProfile = null, siteMode = false;
+  let listed = [];
   function listGames() {
-    const games = Builder.games.filter(g => !g.dropped).sort((a, b) => a.title.localeCompare(b.title));
-    $('gameList').innerHTML = games.map(g =>
+    listed = Builder.games.filter(g => !g.dropped).sort((a, b) => a.title.localeCompare(b.title));
+    $('gameList').innerHTML = listed.map((g, i) =>
       `<details><summary>${esc(g.title)}</summary><div>` +
       `${esc(g.system)} original by ${esc(g.original)}.<br>C64 port by ${esc(g.port)}, version ${esc(g.version)}.<br>` +
       `Needs: <code class="long">${esc(g.romName)}</code> (${g.romSize} bytes)<br>MD5 <code class="long">${esc(g.md5)}</code>` +
       `<table>${(g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` +
-      `</div></details>`).join('');
-    $('showGames').textContent = `Supported games (${games.length})`;
+      `<div class="buttons">` +
+      (g.readme ? `<button type="button" class="btn" data-readme="${i}">Read me</button>` +
+        `<a class="btn" href="${esc(g.readme)}" download="${esc(g.readme.split('/').pop())}">Download README</a>` : '') +
+      (g.file ? `<a class="btn" href="${esc(g.file)}" download="${esc(g.file.split('/').pop())}">Download profile (.json)</a>` : '') +
+      `</div></div></details>`).join('');
+    $('showGames').textContent = `Supported games (${listed.length})`;
   }
+  $('gameList').addEventListener('click', e => {
+    const b = e.target.closest('[data-readme]');
+    if (b) showReadme(listed[+b.dataset.readme]);
+  });
+
+  // ---------------------------------------------------------------- read-mes
+  // A game's README (Markdown, in the site's games/ folder), shown in the page. Only the
+  // Markdown our read-mes use: headings, paragraphs, lists, tables, `code`, **bold**, *italic*
+  // and links. Everything is escaped first; only http(s) links become links.
+  function inline(s) {
+    const code = [];
+    return esc(s)
+      .replace(/`([^`]+)`/g, (m, c) => `\u0000${code.push(c) - 1}\u0000`)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?![*\w])/g, '$1<em>$2</em>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/\u0000(\d+)\u0000/g, (m, n) => `<code>${code[n]}</code>`);
+  }
+  function markdown(text) {
+    const lines = text.replace(/\r/g, '').split('\n'), out = [];
+    const isRule = r => /^[\s|:-]+$/.test(r);
+    const cells = r => r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    const block = l => /^(#{1,6}\s|\s*\||\s*[*-]\s|```)/.test(l);
+    let i = 0, m;
+    while (i < lines.length) {
+      const l = lines[i];
+      if (!l.trim()) { i++; continue; }
+      if ((m = /^(#{1,6})\s+(.*)/.exec(l))) {
+        const n = Math.min(m[1].length + 1, 4);
+        out.push(`<h${n}>${inline(m[2])}</h${n}>`); i++;
+      } else if (/^\s*\|/.test(l)) {
+        const rows = [];
+        while (i < lines.length && /^\s*\|/.test(lines[i])) rows.push(lines[i++]);
+        const head = rows.length > 1 && isRule(rows[1]);
+        out.push('<div class="scroll"><table>' + rows.filter(r => !isRule(r)).map((r, k) => {
+          const t = head && k === 0 ? 'th' : 'td';
+          return '<tr>' + cells(r).map(c => `<${t}>${inline(c)}</${t}>`).join('') + '</tr>';
+        }).join('') + '</table></div>');
+      } else if (/^\s*[*-]\s/.test(l)) {
+        const items = [];
+        while (i < lines.length && lines[i].trim() && (/^\s*[*-]\s/.test(lines[i]) || /^\s+\S/.test(lines[i]))) {
+          if (/^\s*[*-]\s/.test(lines[i])) items.push(lines[i].replace(/^\s*[*-]\s+/, ''));
+          else items[items.length - 1] += ' ' + lines[i].trim();
+          i++;
+        }
+        out.push('<ul>' + items.map(t => `<li>${inline(t)}</li>`).join('') + '</ul>');
+      } else if (/^```/.test(l)) {
+        const code = [];
+        for (i++; i < lines.length && !/^```/.test(lines[i]); i++) code.push(lines[i]);
+        i++;
+        out.push(`<pre>${esc(code.join('\n'))}</pre>`);
+      } else {
+        const para = [];
+        while (i < lines.length && lines[i].trim() && (!para.length || !block(lines[i]))) para.push(lines[i++].trim());
+        out.push(`<p>${inline(para.join(' '))}</p>`);
+      }
+    }
+    return out.join('\n');
+  }
+  async function showReadme(g) {
+    try {
+      const r = await fetch(g.readme);
+      if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+      $('readmeBody').innerHTML = markdown(await r.text());
+      $('readmeDl').href = g.readme;
+      $('readmeDl').download = g.readme.split('/').pop();
+      $('readmePanel').hidden = false;
+      $('readmePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      bStatus(`Couldn't load the read-me for ${g.title}: ${e.message}`, 'bad');
+    }
+  }
+  $('readmeClose').addEventListener('click', () => { $('readmePanel').hidden = true; });
   $('showGames').addEventListener('click', () => {
     const open = $('gamesPanel').hidden;
     $('gamesPanel').hidden = !open;
@@ -575,6 +678,8 @@ if (typeof module !== 'undefined') module.exports = Builder;
       (g.dropped && siteMode ? ` (Built with the profile from your file ${g.dropped}, ` +
         (g.overridesSite ? "instead of this site's own profile for this game.)" : "not one of this site's games.)") : '');
     $('rControls').innerHTML = (g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+    $('rReadme').hidden = !g.readme;      // (the site's own games; not a dropped profile)
+    $('rReadme').onclick = () => showReadme(g);
     bStatus('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
     $('bResult').classList.add('show');
   }
