@@ -11,6 +11,8 @@ Version 1.0: on the web builder (<https://doughboy68.github.io/c64-2600-ports/>)
 The C64 version is `build\adventure-c64.prg`, also on the disk image `build\adventure-c64.d64`.
 On a real C64: `LOAD"ADVENTURE",8` then `RUN`. Type `LIST` first to see the credits and controls.
 
+## Controls
+
 | Action | Keys | Joystick |
 |---|---|---|
 | Move (8 directions) | **W A S D** | port 2 (or port 1) |

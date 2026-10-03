@@ -9,6 +9,8 @@ everything the 2600's hardware did: the display, collision detection, controls a
 The C64 version is `build\berzerk-c64.prg`, also on the disk image `build\berzerk-c64.d64`.
 On a real C64: `LOAD"BERZERK",8` then `RUN`. Type `LIST` first to see the credits and controls.
 
+## Controls
+
 | Action | Keys | Joystick |
 |---|---|---|
 | Move (8 directions) | **W A S D** | port 2 (or port 1) |

@@ -11,6 +11,8 @@ Version 1.1: on the web builder (<https://doughboy68.github.io/c64-2600-ports/>)
 The C64 version is `build\demonattack-c64.prg`, also on the disk image `build\demonattack-c64.d64`.
 On a real C64: `LOAD"DEMON ATTACK",8` then `RUN`. Type `LIST` first to see the credits and controls.
 
+## Controls
+
 | Action | Keys | Joystick |
 |---|---|---|
 | Move the laser cannon | **A D** | port 2 (player 2 in a two-player game: port 1) |

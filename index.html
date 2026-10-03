@@ -391,12 +391,13 @@ const Builder = (() => {
   // address of its read-me if the list has one (readme_<id>.md).
   // -> number loaded (throws if the list can't be read)
   async function loadHosted(base = 'games/') {
-    const list = await (await fetch(base + 'index.json')).json();
+    const fresh = { cache: 'no-cache' };    // (always ask the server: right after a publish, not a stale copy)
+    const list = await (await fetch(base + 'index.json', fresh)).json();
     const readmes = new Set(list.readmes || []);
     let n = 0;
     for (const file of list.games || []) {
       try {
-        const { profile, error } = parseProfile(await (await fetch(base + file)).text());
+        const { profile, error } = parseProfile(await (await fetch(base + file, fresh)).text());
         if (error) { console.warn(file + ': ' + error); continue; }
         profile.file = base + file;
         if (readmes.has('readme_' + profile.id + '.md')) profile.readme = base + 'readme_' + profile.id + '.md';
@@ -581,7 +582,7 @@ if (typeof module !== 'undefined') module.exports = Builder;
   }
   async function showReadme(g) {
     try {
-      const r = await fetch(g.readme);
+      const r = await fetch(g.readme, { cache: 'no-cache' });
       if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
       $('readmeBody').innerHTML = markdown(await r.text());
       $('readmeDl').href = g.readme;

@@ -11,11 +11,7 @@ The finished game is in `build\spaceinvaders-c64.prg` and on the disk image
 On a real C64: `LOAD"SPACE INVADERS",8` then `RUN`. Type `LIST` before `RUN` to see the
 title, credits and controls.
 
-## Build it
-
-Needs the original 4K cartridge dump (MD5 `72ffbef6504b75e69ee1045af9075f66`, any file name, or its
-`.zip`) in `roms_port\`, plus the shared tools described in the top-level README. Then run `build.cmd`
-in this folder.
+## Controls
 
 | Action | Player 1 | Player 2 |
 |---|---|---|
@@ -35,6 +31,12 @@ in this folder.
 |---|---|
 | Start a game when none is running (the 2600 needs Game Reset) | **Space**, **Return** or either joystick's fire button |
 | Shot flicker on / off (on = like the 2600, lasers and bombs on alternate frames) | **6** (toggle) |
+
+## Build it
+
+Needs the original 4K cartridge dump (MD5 `72ffbef6504b75e69ee1045af9075f66`, any file name, or its
+`.zip`) in `roms_port\`, plus the shared tools described in the top-level README. Then run `build.cmd`
+in this folder.
 
 ## How it works
 

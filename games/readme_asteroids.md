@@ -9,6 +9,8 @@ everything the 2600's hardware did: the display, the controls and the sound.
 The C64 version is `build\asteroids-c64.prg`, also on the disk image `build\asteroids-c64.d64`.
 On a real C64: `LOAD"ASTEROIDS",8` then `RUN`. Type `LIST` first to see the credits and controls.
 
+## Controls
+
 | Action | Keys | Joystick |
 |---|---|---|
 | Turn left / right | **A** / **D** | left / right |
