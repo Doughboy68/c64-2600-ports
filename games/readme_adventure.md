@@ -4,11 +4,11 @@ A port of Atari's 1980 *Adventure* cartridge (programmed by Warren Robinett) to 
 original 2600 program runs (almost) unchanged on the C64's 6510; new C64 code takes over
 everything the 2600's hardware did: the display, collision detection, controls and sound.
 
-Version 1.0: on the web builder (<https://doughboy68.github.io/c64-2600-ports/>), which builds it from your own ROM.
+Version 1.1: on the web builder (<https://doughboy68.github.io/c64-2600-ports/>), which builds it from your own ROM.
 
 ## Play it
 
-The C64 version is `build\adventure-c64.prg`, also on the disk image `build\adventure-c64.d64`.
+The C64 version is `build\adventure-1.1.prg`, also on the disk image `build\adventure-1.1.d64`.
 On a real C64: `LOAD"ADVENTURE",8` then `RUN`. Type `LIST` first to see the credits and controls.
 
 ## Controls
@@ -26,7 +26,7 @@ On a real C64: `LOAD"ADVENTURE",8` then `RUN`. Type `LIST` first to see the cred
 | Colour / black and white | **F5** |
 | Left difficulty: B, the dragons hesitate before they bite; A, they don't | **F7** |
 | Right difficulty: A, the dragons run from the sword | **F8** |
-| Flicker on / off: on, the objects in a crowded room take turns as on the 2600; off, they are all shown at once | **6** |
+| Flicker on / off: on, the objects in a crowded room take turns as on the 2600; off, they are all shown at once | **F** |
 
 The three games (from the original manual): 1 is the small kingdom, with the gold key in view
 and the chalice in the black castle; 2 is the full kingdom with the catacombs and three castles;
@@ -61,7 +61,7 @@ same on both.
   around the player is a plain 32 x 64 pixel block behind the walls, so it is drawn in the
   characters. Every object shape's sprite images are made at start-up. Frames are built in a
   second buffer (screen, characters, sprites) and swapped at the end of the picture.
-* **Flicker off** (key 6). The 2600 shows two objects a frame and takes turns when a room has
+* **Flicker off** (key F). The 2600 shows two objects a frame and takes turns when a room has
   more. With flicker off the C64 adds the room's other objects as well, each laid out as the kernel
   would draw it, behind the two the game shows this frame. Eight sprites go a long way but not
   always all the way (the bridge alone takes four): an object that doesn't fit takes its turns as on

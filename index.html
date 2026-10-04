@@ -63,6 +63,7 @@
   @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
   pre { white-space: pre-wrap; font: inherit; font-size: 13px; margin: 8px 0 0; color: var(--ink-strong); }
   details summary { cursor: pointer; color: var(--ink-strong); }
+  details summary .ver { color: var(--ink); margin-left: 8px; }
   #gameList details { border-top: 1px solid var(--line); padding: 10px 0; }
   #gameList details:first-child { border-top: 0; }
   #gameList details > div { margin: 8px 0 0 18px; }
@@ -109,6 +110,7 @@
         <div class="buttons">
           <a class="btn" id="dlPrg">Download .prg</a>
           <a class="btn" id="dlD64">Download .d64 disk</a>
+          <a class="btn" id="dlZip">Download all (.zip)</a>
           <button type="button" class="btn" id="rReadme" hidden>Read me</button>
         </div>
         <p class="small">Open either in an emulator such as VICE, or on a real C64 load from disk
@@ -127,14 +129,15 @@
     <button type="button" class="tab" id="showGames" aria-expanded="false" aria-controls="gamesPanel" hidden>Supported games</button>
     <div class="panel" id="gamesPanel" style="margin-top: 16px" hidden>
       <h2>Supported games</h2>
-      <p class="small">Each needs one exact cartridge dump, recognised by its MD5. Click a game for details.</p>
+      <p class="small">Each needs one exact cartridge dump, recognised by its MD5. The number beside each game is
+        the version of its C64 port. Click a game for details.</p>
       <div id="gameList" class="small"></div>
     </div>
     <p class="small">Profiles are plain data files: they hold a port's C64 code with every byte of the
       original game blanked out, so they're safe to share. Your ROM, checked by MD5, fills the gaps.</p>
     <p class="small"><span id="modeNote"></span> <span id="selfDownload" hidden><a href="index.html"
       download="c64-2600-builder.html">Download this page</a> to use it offline: it's one file.</span>
-      <span style="white-space: nowrap">Version 2026-10-03.</span></p>
+      <span style="white-space: nowrap">Version 2026-10-04.</span></p>
   </section>
 
   <!-- ================================================================ make -->
@@ -407,6 +410,38 @@ const Builder = (() => {
     return n;
   }
 
+  // A .zip of files [{name, data (bytes or text)}], stored (no compression) -> bytes
+  const crcTable = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = crcTable[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zip(files) {
+    const enc = new TextEncoder(), parts = [], dir = [];
+    let off = 0;
+    const d = new Date(), dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1),
+      dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    for (const f of files) {
+      const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+      const head = (sig, extra) => { const h = new DataView(new ArrayBuffer(extra)); h.setUint32(0, sig, true); return h; };
+      const lh = head(0x04034b50, 30);
+      lh.setUint16(4, 20, true); lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true);
+      const ch = head(0x02014b50, 46);
+      ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(12, dosTime, true); ch.setUint16(14, dosDate, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+      ch.setUint32(42, off, true);
+      parts.push(new Uint8Array(lh.buffer), name, data);
+      dir.push(new Uint8Array(ch.buffer), name);
+      off += 30 + name.length + data.length;
+    }
+    const dirSize = dir.reduce((n, p) => n + p.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, dirSize, true); end.setUint32(16, off, true);
+    const all = [...parts, ...dir, new Uint8Array(end.buffer)], out = new Uint8Array(off + dirSize + 22);
+    let p = 0;
+    for (const a of all) { out.set(a, p); p += a.length; }
+    return out;
+  }
+
   // The BASIC lines at the start of a .prg: [{num, text}] (REM and SYS spelled out)
   function parseBasic(prg) {
     const load = prg[0] | prg[1] << 8, lines = [];
@@ -464,7 +499,7 @@ const Builder = (() => {
     return null;
   }
 
-  return { games, md5, unzip, addGame, loadHosted, identify, buildPrg, buildD64, toBase64, makeProfile, profileSource, parseBasic, parseProfile, checkProfile };
+  return { games, md5, unzip, zip, addGame, loadHosted, identify, buildPrg, buildD64, toBase64, makeProfile, profileSource, parseBasic, parseProfile, checkProfile };
 })();
 
 if (typeof module !== 'undefined') module.exports = Builder;
@@ -509,14 +544,14 @@ if (typeof module !== 'undefined') module.exports = Builder;
   function listGames() {
     listed = Builder.games.filter(g => !g.dropped).sort((a, b) => a.title.localeCompare(b.title));
     $('gameList').innerHTML = listed.map((g, i) =>
-      `<details><summary>${esc(g.title)}</summary><div>` +
+      `<details><summary>${esc(g.title)}<span class="ver">(${esc(g.version)})</span></summary><div>` +
       `${esc(g.system)} original by ${esc(g.original)}.<br>C64 port by ${esc(g.port)}, version ${esc(g.version)}.<br>` +
       `Needs: <code class="long">${esc(g.romName)}</code> (${g.romSize} bytes)<br>MD5 <code class="long">${esc(g.md5)}</code>` +
       `<table>${(g.controls || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</table>` +
       `<div class="buttons">` +
       (g.readme ? `<button type="button" class="btn" data-readme="${i}">Read me</button>` +
-        `<a class="btn" href="${esc(g.readme)}" download="${esc(g.readme.split('/').pop())}">Download README</a>` : '') +
-      (g.file ? `<a class="btn" href="${esc(g.file)}" download="${esc(g.file.split('/').pop())}">Download profile (.json)</a>` : '') +
+        `<a class="btn" href="${esc(g.readme)}" download="${esc(baseName(g))}.md">Download README</a>` : '') +
+      (g.file ? `<a class="btn" href="${esc(g.file)}" download="${esc(baseName(g))}.json">Download profile (.json)</a>` : '') +
       `</div></div></details>`).join('');
     $('showGames').textContent = `Supported games (${listed.length})`;
   }
@@ -583,8 +618,15 @@ if (typeof module !== 'undefined') module.exports = Builder;
   // A read-me is the site's (g.readme, an address) or one dropped with the files ({name, text}),
   // which goes with the game its first heading names, else with the profile dropped with it.
   const droppedReadmes = [];
+  // The downloads' name: the profile's fileName with the version in it (games from Missile
+  // Command on have it there already, "missilecmd-0.1"; older ones get "-1.2" added)
+  function baseName(g) {
+    const num = (String(g.version).match(/[\d.]*\d/) || [''])[0];  // (file names carry just the number)
+    if (num && g.fileName.endsWith('-' + num)) return g.fileName;
+    return g.fileName + '-' + String(g.version).trim().replace(/\s+/g, '-');   // ("beta 0.0.2": "beta-0.0.2")
+  }
   function readmeFor(g) {
-    if (g.readme) return { url: g.readme, name: g.readme.split('/').pop() };
+    if (g.readme) return { url: g.readme, name: baseName(g) + '.md' };
     const t = g.title.toLowerCase();
     return droppedReadmes.find(r => r.heading.toLowerCase().startsWith(t)) || droppedReadmes.find(r => r.md5 === g.md5);
   }
@@ -700,7 +742,8 @@ if (typeof module !== 'undefined') module.exports = Builder;
     const g = found.game;
     const prg = Builder.buildPrg(g, found.rom);
     link('dlPrg', prg, g.fileName + '.prg');
-    link('dlD64', Builder.buildD64(prg, g.prgName, g.diskName, g.diskId), g.fileName + '.d64');
+    const d64 = Builder.buildD64(prg, g.prgName, g.diskName, g.diskId);
+    link('dlD64', d64, g.fileName + '.d64');
     $('rTitle').textContent = g.title + ' for the Commodore 64';
     $('rCredits').textContent = `${g.system} original by ${g.original}. C64 port by ${g.port}, version ${g.version}.` +
       (g.dropped && siteMode ? ` (Built with the profile from your file ${g.dropped}, ` +
@@ -709,6 +752,14 @@ if (typeof module !== 'undefined') module.exports = Builder;
     const readme = readmeFor(g);          // (the site's, or one dropped with the files)
     $('rReadme').hidden = !readme;
     $('rReadme').onclick = () => showReadme(readme, g.title);
+    const files = [{ name: g.fileName + '.prg', data: prg }, { name: g.fileName + '.d64', data: d64 }];
+    let text = readme && readme.text;     // (the .zip: the .prg, the .d64 and the read-me)
+    if (readme && readme.url) try {
+      const r = await fetch(readme.url, { cache: 'no-cache' });
+      if (r.ok) text = await r.text();
+    } catch { /* (then the .zip goes without it) */ }
+    if (text) files.push({ name: baseName(g) + '.md', data: text });
+    link('dlZip', Builder.zip(files), baseName(g) + '.zip');
     bStatus('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
     $('bResult').classList.add('show');
   }

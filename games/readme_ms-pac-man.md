@@ -8,7 +8,7 @@ Everything else is Zeiche's program as he made it.
 
 ## Play it
 
-`build\mspacman-c64.prg`, or the disk image `build\mspacman-c64.d64` (`LOAD"MS. PAC-MAN",8` then
+`build\mspacman-0.0.3.prg`, or the disk image `build\mspacman-0.0.3.d64` (`LOAD"MS. PAC-MAN",8` then
 `RUN`). Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Controls
@@ -31,9 +31,9 @@ the left one), so any of these work for whoever's turn it is.
 
 | C64 extra | Key |
 |---|---|
-| Flicker on / off | **6** |
+| Flicker on / off | **F** |
 
-Zeiche's own keys were 1 select and 2 reset; 6 (flicker) stays.
+Zeiche's own keys were 1 select and 2 reset; flicker is F (it was 6, his key, until beta 0.0.3).
 
 ## Build it
 
@@ -49,7 +49,7 @@ ROM back in to get `build\zeiche.prg`, checked against his `.prg`'s MD5. `c64\ma
 rebuilds the program region by region from that (`Keep`), with our changes in between:
 
 * **BASIC listing**: title, credits (GCC's four programmers, Zeiche's line, then "updated by
-  Claude and Doughboy68"), version (beta 0.0.2) and the controls. It has to fit in front of his
+  Claude and Doughboy68"), version (beta 0.0.3) and the controls. It has to fit in front of his
   code at `$0931`, so it is written short.
 * **ReadInput** (`$32ED`, in place of his input routine, which nothing else used): the joysticks,
   W A S D + Space and the console keys, read the way our other ports read them; it fills in the

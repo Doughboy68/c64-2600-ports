@@ -6,8 +6,8 @@ hardware did: the display, collision detection, controls and sound.
 
 ## Play it
 
-The finished game is in `build\spaceinvaders-c64.prg` and on the disk image
-`build\spaceinvaders-c64.d64`. Open either in VICE (e.g. drag it onto the `x64sc` window).
+The finished game is in `build\spaceinv-1.4.prg` and on the disk image
+`build\spaceinv-1.4.d64`. Open either in VICE (e.g. drag it onto the `x64sc` window).
 On a real C64: `LOAD"SPACE INVADERS",8` then `RUN`. Type `LIST` before `RUN` to see the
 title, credits and controls.
 
@@ -30,7 +30,7 @@ title, credits and controls.
 | C64 extra | Key |
 |---|---|
 | Start a game when none is running (the 2600 needs Game Reset) | **Space**, **Return** or either joystick's fire button |
-| Shot flicker on / off (on = like the 2600, lasers and bombs on alternate frames) | **6** (toggle) |
+| Shot flicker on / off (on = like the 2600, lasers and bombs on alternate frames) | **F** (toggle) |
 
 ## Build it
 
@@ -75,7 +75,7 @@ in this folder.
 ## Differences from the 2600
 
 * Shot flicker (lasers and bombs on alternate frames, as the 2600 draws them) is on by default;
-  key 6 turns it off. On PAL it runs at 25 Hz instead of the 2600's 30 Hz.
+  key F turns it off. On PAL it runs at 25 Hz instead of the 2600's 30 Hz.
 * Colours are approximated from the 2600 NTSC palette to the C64's 16.
 * TIA sounds are approximated on the SID.
 * On PAL, every fifth frame runs two game steps, so movement has a slight rhythm to it.

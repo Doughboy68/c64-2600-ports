@@ -6,7 +6,7 @@ everything the 2600's hardware did: the display, the controls and the sound.
 
 ## Play it
 
-The C64 version is `build\asteroids-c64.prg`, also on the disk image `build\asteroids-c64.d64`.
+The C64 version is `build\asteroids-1.3.prg`, also on the disk image `build\asteroids-1.3.d64`.
 On a real C64: `LOAD"ASTEROIDS",8` then `RUN`. Type `LIST` first to see the credits and controls.
 
 ## Controls
@@ -28,7 +28,7 @@ for whoever's turn it is.
 | Game Select (games 1-66) | **F3** |
 | Colour / black and white | **F5** |
 | Left / right difficulty (A: UFOs and satellites for that player) | **F7** / **F8** |
-| The asteroids and the ship take turns on screen like on the 2600 (flicker) on / off | **6** |
+| The asteroids and the ship take turns on screen like on the 2600 (flicker) on / off | **F** |
 
 The games (from the original manual): 1-33 for one player, 34-65 for two (taking turns), 66
 for children. Each comes with hyperspace, shields, flip (a 180° turn) or no special feature
@@ -86,7 +86,7 @@ described in the top-level README. Then run `build.cmd` in this folder.
 
 * Colours are approximated from the 2600 NTSC palette to the C64's 16.
 * TIA sounds are approximated on the SID.
-* With flicker off (key 6), the asteroids and the ship, UFO and shots are all shown every frame.
+* With flicker off (key F), the asteroids and the ship, UFO and shots are all shown every frame.
 * Where the UFO's shot crosses the UFO, the shot is drawn in front (on the 2600 the UFO covers
   it): the C64's two multicolour colours can't follow all of the 2600's priorities.
 * Where the background colour changes (game over), the 2600 changes it a few lines into the

@@ -8,7 +8,7 @@ Version 1.1: on the web builder (<https://doughboy68.github.io/c64-2600-ports/>)
 
 ## Play it
 
-The C64 version is `build\demonattack-c64.prg`, also on the disk image `build\demonattack-c64.d64`.
+The C64 version is `build\demonattack-1.1.prg`, also on the disk image `build\demonattack-1.1.d64`.
 On a real C64: `LOAD"DEMON ATTACK",8` then `RUN`. Type `LIST` first to see the credits and controls.
 
 ## Controls
@@ -25,7 +25,7 @@ On a real C64: `LOAD"DEMON ATTACK",8` then `RUN`. Type `LIST` first to see the c
 | Game Select | **F3** |
 | Left / right difficulty switch | **F7** / **F8** |
 
-F5 (colour / black and white) and 6 (flicker) are the standard keys of our ports; Demon Attack
+F5 (colour / black and white) and F (flicker) are the standard keys of our ports; Demon Attack
 doesn't read the colour switch and doesn't flicker, so they do nothing here.
 
 The games and difficulty switches are as in the

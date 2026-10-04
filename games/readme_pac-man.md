@@ -7,7 +7,7 @@ Everything else is Zeiche's program as he made it.
 
 ## Play it
 
-`build\pacman-c64.prg`, or the disk image `build\pacman-c64.d64` (`LOAD"PAC-MAN",8` then `RUN`).
+`build\pacman-0.0.3.prg`, or the disk image `build\pacman-0.0.3.d64` (`LOAD"PAC-MAN",8` then `RUN`).
 Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Controls
@@ -27,9 +27,9 @@ the player whose turn it is (on the 2600, player 2 used the right joystick).
 | Game Select | **F3** |
 | Colour / B&W | **F5** (toggle) |
 | Player 1 / player 2 difficulty | **F7** / **F8** (toggle) |
-| Flicker on / off | **6** |
+| Flicker on / off | **F** |
 
-Zeiche's own keys were 1 select, 2 reset, 3 / 4 difficulty and 5 colour; 6 (flicker) stays.
+Zeiche's own keys were 1 select, 2 reset, 3 / 4 difficulty and 5 colour; flicker is F (it was 6, his key, until beta 0.0.3).
 
 ## Build it
 
@@ -45,7 +45,7 @@ ROM back in to get `build\zeiche.prg`, checked against his `.prg`'s MD5. `c64\ma
 rebuilds the program region by region from that (`Keep`), with our changes in between:
 
 * **BASIC listing**: title, credits (Zeiche's, then "updated by Claude and Doughboy68"),
-  version (beta 0.0.2) and the controls. It has to fit in front of his code at `$0932`.
+  version (beta 0.0.3) and the controls. It has to fit in front of his code at `$0932`.
 * **ReadInput** (`$30EA`, in place of his input routine, which nothing else used): the joysticks,
   W A S D + Space, and the console keys, read the way our other ports read them; it fills in the
   2600's SWCHA, SWCHB, INPT4 / INPT5 and his copies of them for the power-on code. His frame hook

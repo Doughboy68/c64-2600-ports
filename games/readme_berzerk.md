@@ -6,7 +6,7 @@ everything the 2600's hardware did: the display, collision detection, controls a
 
 ## Play it
 
-The C64 version is `build\berzerk-c64.prg`, also on the disk image `build\berzerk-c64.d64`.
+The C64 version is `build\berzerk-1.2.prg`, also on the disk image `build\berzerk-1.2.d64`.
 On a real C64: `LOAD"BERZERK",8` then `RUN`. Type `LIST` first to see the credits and controls.
 
 ## Controls
@@ -21,7 +21,7 @@ On a real C64: `LOAD"BERZERK",8` then `RUN`. Type `LIST` first to see the credit
 | Start a game (Game Reset); fire also starts one | **F1** |
 | Power off and on (back to game 1, no score) | **F2** |
 | Game Select (games 1-12) | **F3** |
-| Evil Otto and the humanoid alternate on screen like on the 2600 (flicker) on / off | **6** |
+| Evil Otto and the humanoid alternate on screen like on the 2600 (flicker) on / off | **F** |
 
 F5, F7 and F8 are the standard colour and difficulty keys; Berzerk doesn't use those switches.
 
@@ -74,7 +74,7 @@ in this folder.
 
 * Colours are approximated from the 2600 NTSC palette to the C64's 16.
 * TIA sounds are approximated on the SID.
-* With flicker off (key 6), the humanoid and Evil Otto are both shown every frame.
+* With flicker off (key F), the humanoid and Evil Otto are both shown every frame.
 * A few 2600 drawing quirks are copied for the collisions but not drawn: the humanoid's shape
   "smearing" down the screen when its last row isn't blank, two pixels of wall drawn a line early,
   and part of a line of the robot shot.

@@ -8,7 +8,7 @@ BASIC listing, and no grey dot. Everything else is Zeiche's program as he made i
 
 ## Play it
 
-`build\kaboom-c64.prg`, or the disk image `build\kaboom-c64.d64` (`LOAD"KABOOM!",8` then `RUN`).
+`build\kaboom-0.0.2.prg`, or the disk image `build\kaboom-0.0.2.d64` (`LOAD"KABOOM!",8` then `RUN`).
 Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Controls

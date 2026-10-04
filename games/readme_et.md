@@ -18,7 +18,7 @@ code or takes out again.
 
 ## Play it
 
-`build\et-c64.prg`, or the disk image `build\et-c64.d64` (`LOAD"E.T.",8` then `RUN`).
+`build\et-0.0.2.prg`, or the disk image `build\et-0.0.2.d64` (`LOAD"E.T.",8` then `RUN`).
 Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Controls
@@ -41,7 +41,7 @@ Type `LIST` before `RUN` to see the title, credits and controls.
 | recompile's ROM hacks on / off | **H** (on the title screen) |
 
 Zeiche's own keys were 1 select, 2 reset, 3 / 4 difficulty, 5 the colour switch and 6 the ROM
-hacks. 6 is the flicker key in all our ports (E.T. has no flicker), so the hacks moved to H.
+hacks. 6 was the flicker key in all our ports then (F now; E.T. has no flicker), so the hacks moved to H.
 
 ## Build it
 

@@ -7,7 +7,7 @@ listing. Everything else is Zeiche's program as he made it.
 
 ## Play it
 
-`build\yars-c64.prg`, or the disk image `build\yars-c64.d64` (`LOAD"YARS' REVENGE",8` then `RUN`).
+`build\yars-0.0.2.prg`, or the disk image `build\yars-0.0.2.d64` (`LOAD"YARS' REVENGE",8` then `RUN`).
 Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Controls

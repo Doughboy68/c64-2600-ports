@@ -9,7 +9,7 @@ sprites that flickered.
 
 ## Play it
 
-`build\combat-c64.prg`, or the disk image `build\combat-c64.d64` (`LOAD"COMBAT",8` then `RUN`).
+`build\combat-1.3.prg`, or the disk image `build\combat-1.3.d64` (`LOAD"COMBAT",8` then `RUN`).
 Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Build it
