@@ -116,6 +116,10 @@
         </div>
         <p class="small">Open either in an emulator such as VICE, or on a real C64 load from disk
           and <code>RUN</code> (<code>LIST</code> first shows the credits).</p>
+        <p class="small" id="srcNote" hidden>The source holds everything that makes this C64 version, to build it
+          or change it (its <code>CLAUDE.md</code> explains it all): the port's own code and tools, and the
+          original game's program as a disassembly, made here in your browser from your ROM. Your ROM never
+          leaves your computer, and this site holds none of the original game's code.</p>
         <table class="small" id="rControls"></table>
       </div>
       <p class="small" id="loaded"></p>
@@ -995,7 +999,7 @@ if (typeof module !== 'undefined') module.exports = Disasm;
     } catch { /* (then the .zip goes without it) */ }
     if (text) files.push({ name: baseName(g) + '.md', data: text });
     link('dlZip', Builder.zip(files), baseName(g) + '.zip');
-    $('dlSrc').hidden = !g.source;
+    $('dlSrc').hidden = $('srcNote').hidden = !g.source;
     $('dlSrc').onclick = g.source ? () => sourceBundle(g, found.rom) : null;
     bStatus('ROM recognised: ' + g.title + '. Your C64 version is ready:', 'ok');
     $('bResult').classList.add('show');
