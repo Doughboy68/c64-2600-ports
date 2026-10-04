@@ -27,5 +27,13 @@
   "readme_pac-man.md",
   "readme_space-invaders.md",
   "readme_yars-revenge.md"
+ ],
+ "sources": [
+  "source_adventure.zip",
+  "source_asteroids.zip",
+  "source_berzerk.zip",
+  "source_demon-attack.zip",
+  "source_missile-command.zip",
+  "source_space-invaders.zip"
  ]
 }
