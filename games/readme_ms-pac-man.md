@@ -8,7 +8,7 @@ Everything else is Zeiche's program as he made it.
 
 ## Play it
 
-`build\mspacman-0.0.3.prg`, or the disk image `build\mspacman-0.0.3.d64` (`LOAD"MS. PAC-MAN",8` then
+`build\mspacman-1.0.prg`, or the disk image `build\mspacman-1.0.d64` (`LOAD"MS. PAC-MAN",8` then
 `RUN`). Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Controls
@@ -49,7 +49,7 @@ ROM back in to get `build\zeiche.prg`, checked against his `.prg`'s MD5. `c64\ma
 rebuilds the program region by region from that (`Keep`), with our changes in between:
 
 * **BASIC listing**: title, credits (GCC's four programmers, Zeiche's line, then "updated by
-  Claude and Doughboy68"), version (beta 0.0.3) and the controls. It has to fit in front of his
+  Claude and Doughboy68"), version (1.0) and the controls. It has to fit in front of his
   code at `$0931`, so it is written short.
 * **ReadInput** (`$32ED`, in place of his input routine, which nothing else used): the joysticks,
   W A S D + Space and the console keys, read the way our other ports read them; it fills in the

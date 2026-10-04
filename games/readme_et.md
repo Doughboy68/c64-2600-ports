@@ -18,7 +18,7 @@ code or takes out again.
 
 ## Play it
 
-`build\et-0.0.2.prg`, or the disk image `build\et-0.0.2.d64` (`LOAD"E.T.",8` then `RUN`).
+`build\et-1.0.prg`, or the disk image `build\et-1.0.d64` (`LOAD"E.T.",8` then `RUN`).
 Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Controls
@@ -57,7 +57,7 @@ ROM back in to get `build\zeiche.prg`, checked against his `.prg`'s MD5. `c64\ma
 rebuilds the program region by region from that (`Keep`), with our changes in between:
 
 * **BASIC listing**: title, credits (Zeiche's, then "updated by Claude and Doughboy68"),
-  version (beta 0.0.2) and the controls. It has to fit in front of his code at `$095C`.
+  version (1.0) and the controls. It has to fit in front of his code at `$095C`.
 * **ReadInput** (`$37A3`, in place of his input routine, which nothing else used): the joysticks,
   W A S D + Space and the console keys, read the way our other ports read them; it fills in the
   2600's SWCHA, SWCHB, INPT4 and his copies of them for the power-on code. His frame hook at

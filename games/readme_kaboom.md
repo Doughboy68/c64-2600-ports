@@ -8,7 +8,7 @@ BASIC listing, and no grey dot. Everything else is Zeiche's program as he made i
 
 ## Play it
 
-`build\kaboom-0.0.2.prg`, or the disk image `build\kaboom-0.0.2.d64` (`LOAD"KABOOM!",8` then `RUN`).
+`build\kaboom-1.0.prg`, or the disk image `build\kaboom-1.0.d64` (`LOAD"KABOOM!",8` then `RUN`).
 Type `LIST` before `RUN` to see the title, credits and controls.
 
 ## Controls
@@ -46,7 +46,7 @@ back in to get `build\zeiche.prg`, checked against his `.prg`'s MD5. `c64\main.a
 the program region by region from that (`Keep`), with our changes in between:
 
 * **BASIC listing**: title, credits (Zeiche's, then "updated by Claude and Doughboy68"), version
-  (beta 0.0.2) and the controls. It has to fit in front of his code at `$094C`.
+  (1.0) and the controls. It has to fit in front of his code at `$094C`.
 * **ReadInput** (`$3549`, in place of his input routine). His paddle and mouse code stays: it
   reads the SID's pot lines (`$331B`), works out which of a mouse (port 1) and paddles (port 2) is
   there (`$87C6`), and moves the paddles from them (`$33E7`), now only for what it has seen, so
