@@ -4,12 +4,12 @@ A port of Atari's 1984 *Stargate* cartridge (the 2600 version of Williams' arcad
 C64. The original 2600 program runs (almost) unchanged on the C64's 6510; new C64 code takes over
 everything the 2600's hardware did: the display, collision detection, the controls and the sound.
 
-Version 0.1.
+Version 1.0.
 
 ## Play it
 
-The C64 version is `build\stargate-0.1.prg` (the version in its name), also on the disk image
-`build\stargate-0.1.d64`. On a real C64: `LOAD"STARGATE",8` then `RUN`. Type `LIST` first to see
+The C64 version is `build\stargate-1.0.prg` (the version in its name), also on the disk image
+`build\stargate-1.0.d64`. On a real C64: `LOAD"STARGATE",8` then `RUN`. Type `LIST` first to see
 the credits and controls.
 
 ## Controls
