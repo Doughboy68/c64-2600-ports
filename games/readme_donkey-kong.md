@@ -5,12 +5,12 @@ from Nintendo's arcade game) to the C64. The original 2600 program runs (almost)
 C64's 6510; new C64 code takes over everything the 2600's hardware did: the display, collision
 detection, the controls and the sound.
 
-Version 1.1.
+Version 1.2.
 
 ## Play it
 
-The C64 version is `build\donkeykong-1.1.prg` (the version in its name), also on the disk image
-`build\donkeykong-1.1.d64`. On a real C64: `LOAD"DONKEY KONG",8` then `RUN`. Type `LIST` first to
+The C64 version is `build\donkeykong-1.2.prg` (the version in its name), also on the disk image
+`build\donkeykong-1.2.d64`. On a real C64: `LOAD"DONKEY KONG",8` then `RUN`. Type `LIST` first to
 see the credits and controls.
 
 ## Controls
