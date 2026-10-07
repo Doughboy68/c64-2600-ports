@@ -6,6 +6,7 @@
   "berzerk.json",
   "combat.json",
   "demon-attack.json",
+  "donkey-kong.json",
   "et.json",
   "kaboom.json",
   "missile-command.json",
@@ -21,6 +22,7 @@
   "readme_berzerk.md",
   "readme_combat.md",
   "readme_demon-attack.md",
+  "readme_donkey-kong.md",
   "readme_et.md",
   "readme_kaboom.md",
   "readme_missile-command.md",
@@ -35,6 +37,7 @@
   "source_asteroids.zip",
   "source_berzerk.zip",
   "source_demon-attack.zip",
+  "source_donkey-kong.zip",
   "source_missile-command.zip",
   "source_space-invaders.zip",
   "source_stargate.zip"
