@@ -142,7 +142,7 @@
       original game blanked out, so they're safe to share. Your ROM, checked by MD5, fills the gaps.</p>
     <p class="small"><span id="modeNote"></span> <span id="selfDownload" hidden><a href="index.html"
       download="c64-2600-builder.html">Download this page</a> to use it offline: it's one file.</span>
-      <span style="white-space: nowrap">Version 2026-10-04.</span></p>
+      <span style="white-space: nowrap">Version 2026-10-07.</span></p>
   </section>
 
   <!-- ================================================================ make -->
@@ -349,7 +349,12 @@ const Builder = (() => {
   // Every stretch of the .prg that is a copy of the ROM (8+ bytes, wherever and
   // however often it occurs) is blanked and recorded as [romStart, prgOffset,
   // length]. Runs of one repeated byte carry nothing of the game and are skipped.
-  // -> {profile, ok (rebuilds the .prg exactly), blanked, romUsed}
+  // -> {profile, ok (rebuilds the .prg exactly), blanked, romUsed, share, enough}
+  // A port made by patching the ROM in place holds most of it byte for byte (every port here
+  // holds 65% or more). When much less of the ROM is found, either the ROM isn't the one the
+  // port was made from or the port is a rewrite of the game: its profile would still carry the
+  // game's code, so none is offered (enough = false) under MIN_ROM_SHARE.
+  const MIN_ROM_SHARE = 0.5;
   function makeProfile(prg, rom, meta) {
     const MIN = 8, key = (b, i) => (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0;
     const idx = new Map();
@@ -382,7 +387,8 @@ const Builder = (() => {
     const ok = rebuilt.length === prg.length && rebuilt.every((b, i) => b === prg[i]);
     const used = new Uint8Array(rom.length);
     for (const [r, , n] of segments) used.fill(1, r, r + n);
-    return { profile, ok, blanked: segments.reduce((a, s) => a + s[2], 0), romUsed: used.reduce((a, b) => a + b, 0) };
+    const romUsed = used.reduce((a, b) => a + b, 0), share = romUsed / rom.length;
+    return { profile, ok, blanked: segments.reduce((a, s) => a + s[2], 0), romUsed, share, enough: ok && share >= MIN_ROM_SHARE };
   }
 
   // The text of a profile file (games/<id>.js)
@@ -506,7 +512,7 @@ const Builder = (() => {
     return null;
   }
 
-  return { games, md5, unzip, zip, addGame, loadHosted, identify, buildPrg, buildD64, toBase64, makeProfile, profileSource, parseBasic, parseProfile, checkProfile };
+  return { games, md5, unzip, zip, addGame, loadHosted, identify, buildPrg, buildD64, toBase64, makeProfile, MIN_ROM_SHARE, profileSource, parseBasic, parseProfile, checkProfile };
 })();
 
 if (typeof module !== 'undefined') module.exports = Builder;
@@ -1110,16 +1116,18 @@ if (typeof module !== 'undefined') module.exports = Disasm;
       controls: $('fControls').value.split('\n').map(l => l.trim()).filter(Boolean)
         .map(l => { const m = l.match(/^(.*?)\s+[-–=:]\s+(.*)$/); return m ? [m[1], m[2]] : [l, '']; }),
     };
-    const { profile, ok, blanked, romUsed } = Builder.makeProfile(prg, rom, meta);
-    const pct = Math.round(100 * romUsed / rom.length);
-    // With the wrong ROM the port's own copy of the original wouldn't be blanked,
-    // so a profile is only offered when the ROM clearly matches.
-    const matches = ok && pct >= 25;
+    const { profile, ok, blanked, romUsed, enough } = Builder.makeProfile(prg, rom, meta);
+    const pct = Math.round(100 * romUsed / rom.length), minPct = Math.round(100 * Builder.MIN_ROM_SHARE);
+    // A port made by patching the ROM in place holds most of it byte for byte. When much less
+    // is found, either this isn't the ROM the port was made from, or the port is a rewrite of
+    // the game: either way the profile would still carry the game, so none is offered.
+    const matches = enough;
     let html = '';
     if (!ok) html += `<p class="bad">Something went wrong: the profile doesn't rebuild your .prg exactly.</p>`;
-    if (pct < 25) html += `<p class="bad">Only ${pct}% of this ROM appears in your .prg, so it doesn't look like the ROM ` +
-      `your port was made from (ports normally use well over half of it). No profile was made: it would still contain ` +
-      `the original game. Check you have the exact ROM, then try again.</p>`;
+    if (ok && !enough) html += `<p class="bad">Only ${pct}% of this ROM appears in your .prg (a port made by patching the ROM ` +
+      `holds ${minPct}% or more of it, usually much more). No profile was made: it would still contain the original ` +
+      `game. Either this isn't the exact ROM the port was made from, or the port rewrote the game's code instead ` +
+      `of running the ROM's; a profile can only be made for a port that runs the ROM's own code.</p>`;
     if (matches) html += `<p class="ok">Profile made and checked: it rebuilds your .prg byte for byte.</p>`;
     html += `<table class="small">` +
       `<tr><td>Game</td><td>${esc(title)} (C64 port by ${esc(meta.port)}, version ${esc(meta.version)})</td></tr>` +
