@@ -12,6 +12,7 @@
   "missile-command.json",
   "ms-pac-man.json",
   "pac-man.json",
+  "pitfall.json",
   "space-invaders.json",
   "stargate.json",
   "yars-revenge.json"
@@ -28,6 +29,7 @@
   "readme_missile-command.md",
   "readme_ms-pac-man.md",
   "readme_pac-man.md",
+  "readme_pitfall.md",
   "readme_space-invaders.md",
   "readme_stargate.md",
   "readme_yars-revenge.md"
@@ -39,6 +41,7 @@
   "source_demon-attack.zip",
   "source_donkey-kong.zip",
   "source_missile-command.zip",
+  "source_pitfall.zip",
   "source_space-invaders.zip",
   "source_stargate.zip"
  ]
