@@ -142,7 +142,7 @@
       original game blanked out, so they're safe to share. Your ROM, checked by MD5, fills the gaps.</p>
     <p class="small"><span id="modeNote"></span> <span id="selfDownload" hidden><a href="index.html"
       download="c64-2600-builder.html">Download this page</a> to use it offline: it's one file.</span>
-      <span style="white-space: nowrap">Version 2026-10-07.</span></p>
+      <span style="white-space: nowrap">Version 2026-10-08.</span></p>
   </section>
 
   <!-- ================================================================ make -->
@@ -692,7 +692,10 @@ const Disasm = (() => {
       if (banks.length === 1) L.push(`        * = $${hex(org, 4)}`, '');
       else L.push('', `; ======== bank ${bi} ($${hex(org, 4)}) ========`, `        * = $${hex(4096 * bi, 4)}`, `        .logical $${hex(org, 4)}`, '');
       const vecStart = 0xFFA;
-      for (let o = 0; o < vecStart;) {
+      // (code may run on into the vectors: Megamania's last routine ends with its rts as the
+      // NMI vector's high byte; the vectors it covers are then that code)
+      let o = 0;
+      for (; o < vecStart || (o < 4096 && isCode[o] === 1);) {
         const pc = org + o;
         const info = symbols.labels[pc];
         if (info) L.push('', `; ${info[1]}`);
@@ -712,9 +715,10 @@ const Disasm = (() => {
           o = e;
         }
       }
-      L.push('', '        ; 6502 vectors', `        .word ${sym(w16(d, 0xFFA))}${' '.repeat(16)}; NMI`,
-        `        .word ${sym(w16(d, 0xFFC))}${' '.repeat(16)}; RESET`,
-        `        .word ${sym(w16(d, 0xFFE))}${' '.repeat(16)}; IRQ/BRK`);
+      L.push('', '        ; 6502 vectors' + (o > vecStart ? ` (the NMI vector, $${hex(w16(d, 0xFFA), 4)}, is the code above)` : ''));
+      [[0xFFA, 'NMI'], [0xFFC, 'RESET'], [0xFFE, 'IRQ/BRK']].forEach(([v, n]) => {
+        if (v >= o) L.push(`        .word ${sym(w16(d, v))}${' '.repeat(16)}; ${n}`);
+      });
       if (banks.length > 1) L.push('        .here');
       L.push('');
     });
