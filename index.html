@@ -110,12 +110,15 @@
         <div class="buttons">
           <a class="btn" id="dlPrg">Download .prg</a>
           <a class="btn" id="dlD64">Download .d64 disk</a>
+          <a class="btn" id="dlCrt">Download .crt cartridge</a>
           <a class="btn" id="dlZip">Download all (.zip)</a>
           <button type="button" class="btn" id="dlSrc" hidden>Download source (.zip)</button>
           <button type="button" class="btn" id="rReadme" hidden>Read me</button>
         </div>
-        <p class="small">Open either in an emulator such as VICE, or on a real C64 load from disk
-          and <code>RUN</code> (<code>LIST</code> first shows the credits).</p>
+        <p class="small">Open any of them in an emulator such as VICE, or on a real C64 load from disk
+          and <code>RUN</code> (<code>LIST</code> first shows the credits). The <code>.crt</code> is an EasyFlash
+          cartridge image: it starts the game straight away on an EasyFlash, a Kung Fu Flash, an Ultimate 64 or
+          1541 Ultimate, or in VICE (attach it as a cartridge).</p>
         <p class="small" id="srcNote" hidden>The source holds everything that makes this C64 version, to build it
           or change it (its <code>CLAUDE.md</code> explains it all): the port's own code and tools, and the
           original game's program as a disassembly, made here in your browser from your ROM. Your ROM never
@@ -142,7 +145,7 @@
       original game blanked out, so they're safe to share. Your ROM, checked by MD5, fills the gaps.</p>
     <p class="small"><span id="modeNote"></span> <span id="selfDownload" hidden><a href="index.html"
       download="c64-2600-builder.html">Download this page</a> to use it offline: it's one file.</span>
-      <span style="white-space: nowrap">Version 2026-10-08.</span></p>
+      <span style="white-space: nowrap">Version 2026-10-09.</span></p>
   </section>
 
   <!-- ================================================================ make -->
@@ -338,6 +341,46 @@ const Builder = (() => {
     return img;
   }
 
+  // ---------------------------------------------------------------- CRT
+  // An EasyFlash cartridge image (CRT hardware type 32: EasyFlash, Kung Fu Flash, the Ultimate
+  // devices, VICE) holding one .prg. Bank 0 starts the C64 as without a cartridge, copies the .prg
+  // to where LOAD puts it, switches the cartridge off and RUNs it: src/web/crtboot.asm, whose
+  // bytes tools/mkcrtboot.js puts here (bank 0's ROML code, then ROMH's last page).
+  const CRT_BOOT = 'fIB8gMPCzTgwAAAAAAAAAQCtPgONaAOtPwONaQOpAY0A3q08A8kB0AatPQONQwOgALkAgJn//8jMQwPQ9M48A/Ae7mkD7mYDrWYDycDQ06mAjWYD7kIDrUIDjQDeTFUDqQSNAt6tQAOFroUtrUEDha+FLiAzpSBZpkyup44W0CCj/SBQ/aIAoKAYIJn/IBX9IFv/WCBT5CC/46L7mqJyvQmAnTwDyhD3TEQDeKL/mtiiB70T/50AAcoQ90wAAamHjQLebPz/QP///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////xv/AP8b/w==';
+  function buildCrt(prg, name) {
+    const load = prg[0] | prg[1] << 8, n = prg.length - 2, end = load + n;
+    if (n < 1 || load < 0x0400 || end > 0xd000) throw new Error('the .crt needs a program between $0400 and $CFFF');
+    const boot = Uint8Array.from(atob(CRT_BOOT), c => c.charCodeAt(0));
+    const banks = 1 + Math.ceil(n / 0x4000);
+    if (banks > 64) throw new Error('the program is too big for a cartridge');
+    const rom = new Uint8Array(banks * 0x4000).fill(0xff);       // per bank: ROML, then ROMH
+    rom.set(boot.subarray(0, boot.length - 256), 0);
+    rom.set(boot.subarray(boot.length - 256), 0x4000 - 256);
+    const pages = Math.ceil(n / 256);
+    rom.set([pages, n - (pages - 1) * 256 & 255, load & 255, load >> 8, end & 255, end >> 8], 9);  // (the loader's first bytes)
+    rom.set(prg.subarray(2), 0x4000);
+    const crt = new Uint8Array(0x40 + banks * 2 * (0x10 + 0x2000));
+    const str = (s, at) => { for (let i = 0; i < s.length; i++) crt[at + i] = s.charCodeAt(i); };
+    str('C64 CARTRIDGE   ', 0);
+    crt[0x13] = 0x40;                                             // header length
+    crt[0x14] = 1;                                                // version 1.0
+    crt[0x17] = 32;                                               // EasyFlash
+    crt[0x18] = 1; crt[0x19] = 0;                                 // EXROM, GAME: Ultimax at the start
+    str(String(name).toUpperCase().replace(/[^\x20-\x5f]/g, ' ').slice(0, 32), 0x20);
+    let p = 0x40;
+    for (let b = 0; b < banks; b++) for (let h = 0; h < 2; h++) {
+      str('CHIP', p);
+      crt[p + 6] = 0x20; crt[p + 7] = 0x10;                       // packet length $2010
+      crt[p + 9] = 2;                                             // flash
+      crt[p + 11] = b;                                            // bank
+      crt[p + 12] = h ? 0xa0 : 0x80;                              // load address
+      crt[p + 14] = 0x20;                                         // size $2000
+      crt.set(rom.subarray((b * 2 + h) * 0x2000, (b * 2 + h + 1) * 0x2000), p + 0x10);
+      p += 0x10 + 0x2000;
+    }
+    return crt;
+  }
+
   // ---------------------------------------------------------------- making profiles
   function toBase64(bytes) {
     let s = '';
@@ -512,7 +555,7 @@ const Builder = (() => {
     return null;
   }
 
-  return { games, md5, unzip, zip, addGame, loadHosted, identify, buildPrg, buildD64, toBase64, makeProfile, MIN_ROM_SHARE, profileSource, parseBasic, parseProfile, checkProfile };
+  return { games, md5, unzip, zip, addGame, loadHosted, identify, buildPrg, buildD64, buildCrt, toBase64, makeProfile, MIN_ROM_SHARE, profileSource, parseBasic, parseProfile, checkProfile };
 })();
 
 if (typeof module !== 'undefined') module.exports = Builder;
@@ -993,6 +1036,8 @@ if (typeof module !== 'undefined') module.exports = Disasm;
     link('dlPrg', prg, g.fileName + '.prg');
     const d64 = Builder.buildD64(prg, g.prgName, g.diskName, g.diskId);
     link('dlD64', d64, g.fileName + '.d64');
+    const crt = Builder.buildCrt(prg, g.title);
+    link('dlCrt', crt, g.fileName + '.crt');
     $('rTitle').textContent = g.title + ' for the Commodore 64';
     $('rCredits').textContent = `${g.system} original by ${g.original}. C64 port by ${g.port}, version ${g.version}.` +
       (g.dropped && siteMode ? ` (Built with the profile from your file ${g.dropped}, ` +
@@ -1001,8 +1046,9 @@ if (typeof module !== 'undefined') module.exports = Disasm;
     const readme = readmeFor(g);          // (the site's, or one dropped with the files)
     $('rReadme').hidden = !readme;
     $('rReadme').onclick = () => showReadme(readme, g.title);
-    const files = [{ name: g.fileName + '.prg', data: prg }, { name: g.fileName + '.d64', data: d64 }];
-    let text = readme && readme.text;     // (the .zip: the .prg, the .d64 and the read-me)
+    const files = [{ name: g.fileName + '.prg', data: prg }, { name: g.fileName + '.d64', data: d64 },
+      { name: g.fileName + '.crt', data: crt }];
+    let text = readme && readme.text;     // (the .zip: the .prg, the .d64, the .crt and the read-me)
     if (readme && readme.url) try {
       const r = await fetch(readme.url, { cache: 'no-cache' });
       if (r.ok) text = await r.text();
