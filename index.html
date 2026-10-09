@@ -346,7 +346,7 @@ const Builder = (() => {
   // devices, VICE) holding one .prg. Bank 0 starts the C64 as without a cartridge, copies the .prg
   // to where LOAD puts it, switches the cartridge off and RUNs it: src/web/crtboot.asm, whose
   // bytes tools/mkcrtboot.js puts here (bank 0's ROML code, then ROMH's last page).
-  const CRT_BOOT = 'fIB8gMPCzTgwAAAAAAAAAQCtPgONaAOtPwONaQOpAY0A3q08A8kB0AatPQONQwOgALkAgJn//8jMQwPQ9M48A/Ae7mkD7mYDrWYDycDQ06mAjWYD7kIDrUIDjQDeTFUDqQSNAt6tQAOFroUtrUEDha+FLiAzpSBZpkyup44W0CCj/SBQ/aIAoKAYIJn/IBX9IFv/WCBT5CC/46L7mqJyvQmAnTwDyhD3TEQDeKL/mtiiB70T/50AAcoQ90wAAamHjQLebPz/QP///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////xv/AP8b/w==';
+  const CRT_BOOT = 'j4CPgMPCzTgwAAAAAAAAAa0+A41iA42eA60/A41jA6kBjQDerTwD8CugALkAgJn//8jQ9+5jA+5gA61gA8nA0A6pgI1gA+5CA61CA40A3s48A9DVrD0D8BqtYAONnAOtYwONnwOgALkAgJn//8jMPQPQ9KkEjQLerUADha6FLa1BA4WvhS4gM6UgWaZMrqeOFtAgo/2pAKiZAgCZAAKZAAPI0PSiPKADhrKEs6mghcKpVY0AoKIAoKAYIC3+qQiNggKpBI2IAiAV/SBb/1ggU+Qgv+Oi+5qihr0IgJ07A8rQ90xDA3ii/5rYoge9E/+dAAHKEPdMAAGph40C3mz8/0D///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8b/wD/G/8=';
   function buildCrt(prg, name) {
     const load = prg[0] | prg[1] << 8, n = prg.length - 2, end = load + n;
     if (n < 1 || load < 0x0400 || end > 0xd000) throw new Error('the .crt needs a program between $0400 and $CFFF');
@@ -356,8 +356,9 @@ const Builder = (() => {
     const rom = new Uint8Array(banks * 0x4000).fill(0xff);       // per bank: ROML, then ROMH
     rom.set(boot.subarray(0, boot.length - 256), 0);
     rom.set(boot.subarray(boot.length - 256), 0x4000 - 256);
-    const pages = Math.ceil(n / 256);
-    rom.set([pages, n - (pages - 1) * 256 & 255, load & 255, load >> 8, end & 255, end >> 8], 9);  // (the loader's first bytes)
+    const pages = n >> 8;                                         // (the loader's first bytes: whole pages, the rest)
+    if (pages > 255) throw new Error('the program is too big for a cartridge');
+    rom.set([pages, n & 255, load & 255, load >> 8, end & 255, end >> 8], 9);
     rom.set(prg.subarray(2), 0x4000);
     const crt = new Uint8Array(0x40 + banks * 2 * (0x10 + 0x2000));
     const str = (s, at) => { for (let i = 0; i < s.length; i++) crt[at + i] = s.charCodeAt(i); };
