@@ -14,6 +14,7 @@
   "ms-pac-man.json",
   "pac-man.json",
   "pitfall.json",
+  "river-raid.json",
   "space-invaders.json",
   "stargate.json",
   "yars-revenge.json"
@@ -32,6 +33,7 @@
   "readme_ms-pac-man.md",
   "readme_pac-man.md",
   "readme_pitfall.md",
+  "readme_river-raid.md",
   "readme_space-invaders.md",
   "readme_stargate.md",
   "readme_yars-revenge.md"
@@ -45,6 +47,7 @@
   "source_megamania.zip",
   "source_missile-command.zip",
   "source_pitfall.zip",
+  "source_river-raid.zip",
   "source_space-invaders.zip",
   "source_stargate.zip"
  ]
